@@ -1,0 +1,71 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Client {
+  id              String      @id @default(cuid())
+  name            String
+  phone           String
+  dni             String?     @unique
+  address         String?
+  reference       String?     
+  
+  status          String      @default("ACTIVO")
+  creditLimit     Float       @default(50000.0)
+
+  referredById    String?
+  referredBy      Client?     @relation("ClientReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals       Client[]    @relation("ClientReferrals")
+
+  email           String?     @unique
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  loans           Loan[]
+}
+
+model Loan {
+  id              String      @id @default(cuid())
+  code            String?     @unique
+  clientId        String
+  client          Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  amount          Float
+  totalToPay      Float
+  installments    Int
+  frequency       String
+  status          String      @default("ACTIVO")
+  dueDate         DateTime?
+  
+  createdAt       DateTime    @default(now())
+  payments        Payment[]
+}
+
+model Payment {
+  id               String     @id @default(cuid())
+  receiptNumber    Int?       @unique
+  loanId           String
+  loan             Loan       @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  
+  amount           Float
+  remainingBalance Float
+  paymentType      String     @default("PARCIAL")
+  paymentMethod    String     @default("EFECTIVO")
+  note             String?
+  
+  createdAt        DateTime   @default(now())
+}
+
+model CashMovement {
+  id          String   @id @default(uuid())
+  type        String
+  category    String
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
