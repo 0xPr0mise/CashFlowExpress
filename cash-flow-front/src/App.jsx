@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar"; // O donde decidas ubicarlo
 import LoansPage from "./pages/Loans/LoansPage";
 import ClientsPage from "./pages/Clients/ClientsPage"; // Si tienes tu página de clientes separada
+import CashPage from "./pages/Cash/CashPage";
 
 export default function App() {
   return (
@@ -18,7 +19,7 @@ export default function App() {
           <Routes>
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/loans" element={<LoansPage />} />
-            {/* <Route path="/clients" element={<ClientsPage />} /> */}
+            <Route path="/cash" element={<CashPage />} />
           </Routes>
         </div>
       </div>

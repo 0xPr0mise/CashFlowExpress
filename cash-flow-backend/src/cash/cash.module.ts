@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { CashController } from './cash.controller.js';
-import { CashService } from './cash.service.js';
+import { CashService } from './cash.service';
+import { CashController } from './cash.controller';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [CashController],
-  providers: [CashService]
+  providers: [CashService],
 })
 export class CashModule {}
