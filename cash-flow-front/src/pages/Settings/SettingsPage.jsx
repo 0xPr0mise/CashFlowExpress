@@ -44,167 +44,108 @@ export default function SettingsPage() {
   };
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        fontFamily: "Arial, sans-serif",
-        maxWidth: "800px",
-        margin: "0 auto",
-      }}
-    >
-      <h2
-        style={{
-          color: "#2c3e50",
-          borderBottom: "2px solid #eee",
-          paddingBottom: "10px",
-        }}
-      >
-        Configuración del Sistema
-      </h2>
-
-      {saved && (
-        <div
-          style={{
-            background: "#d4edda",
-            color: "#155724",
-            padding: "10px 15px",
-            borderRadius: "6px",
-            margin: "15px 0",
-          }}
-        >
-          ¡Configuración guardada exitosamente!
-        </div>
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "8px",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          marginTop: "20px",
-        }}
-      >
-        <div style={{ marginBottom: "15px" }}>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "5px",
-              fontWeight: "bold",
-              color: "#333",
-            }}
-          >
-            Nombre de la Empresa / Negocio
-          </label>
-          <input
-            type="text"
-            name="companyName"
-            value={form.companyName}
-            onChange={handleChange}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-            }}
-            required
-          />
+    <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
+      <div className="max-w-3xl mx-auto space-y-8">
+        {/* Cabecera */}
+        <div className="border-b border-neutral-800 pb-5">
+          <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+            <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></span>
+            Configuración del Sistema
+          </h2>
+          <p className="text-sm text-neutral-400 mt-1">
+            Parámetros globales del negocio, monedas y tasas predeterminadas.
+          </p>
         </div>
 
-        <div style={{ marginBottom: "15px" }}>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "5px",
-              fontWeight: "bold",
-              color: "#333",
-            }}
-          >
-            Símbolo de Moneda
-          </label>
-          <input
-            type="text"
-            name="currency"
-            value={form.currency}
-            onChange={handleChange}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-            }}
-            required
-          />
-        </div>
+        {/* Notificación de Guardado */}
+        {saved && (
+          <div className="bg-emerald-950/60 border border-emerald-900/50 text-emerald-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2 shadow-lg animate-fadeIn">
+            <svg
+              className="w-5 h-5 text-emerald-500 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M5 13l4 4L19 7"
+              ></path>
+            </svg>
+            ¡Configuración guardada exitosamente!
+          </div>
+        )}
 
-        <div style={{ marginBottom: "15px" }}>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "5px",
-              fontWeight: "bold",
-              color: "#333",
-            }}
-          >
-            Tasa de Interés por Defecto (%)
-          </label>
-          <input
-            type="number"
-            name="defaultInterestRate"
-            value={form.defaultInterestRate}
-            onChange={handleChange}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-            }}
-            required
-          />
-        </div>
+        {/* Formulario */}
+        <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Nombre de la Empresa / Negocio
+              </label>
+              <input
+                type="text"
+                name="companyName"
+                value={form.companyName}
+                onChange={handleChange}
+                required
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+              />
+            </div>
 
-        <div style={{ marginBottom: "20px" }}>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "5px",
-              fontWeight: "bold",
-              color: "#333",
-            }}
-          >
-            Teléfono de Contacto / Soporte
-          </label>
-          <input
-            type="text"
-            name="contactPhone"
-            value={form.contactPhone}
-            onChange={handleChange}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-            }}
-          />
-        </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Símbolo de Moneda
+              </label>
+              <input
+                type="text"
+                name="currency"
+                value={form.currency}
+                onChange={handleChange}
+                required
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+              />
+            </div>
 
-        <button
-          type="submit"
-          style={{
-            background: "#2c3e50",
-            color: "white",
-            border: "none",
-            padding: "12px 20px",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontWeight: "bold",
-            fontSize: "1rem",
-          }}
-        >
-          Guardar Cambios
-        </button>
-      </form>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Tasa de Interés por Defecto (%)
+              </label>
+              <input
+                type="number"
+                name="defaultInterestRate"
+                value={form.defaultInterestRate}
+                onChange={handleChange}
+                required
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Teléfono de Contacto / Soporte
+              </label>
+              <input
+                type="text"
+                name="contactPhone"
+                value={form.contactPhone}
+                onChange={handleChange}
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+              />
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer"
+              >
+                Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

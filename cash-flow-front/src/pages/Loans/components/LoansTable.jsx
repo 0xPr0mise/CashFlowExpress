@@ -33,106 +33,60 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
 
   return (
     <div>
-      <h3 style={{ color: "#333", marginBottom: "15px" }}>
-        Préstamos Registrados
-      </h3>
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            background: "white",
-            borderRadius: "8px",
-            overflow: "hidden",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          }}
-        >
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr
-              style={{
-                background: "#f8f9fa",
-                textAlign: "left",
-                borderBottom: "2px solid #dee2e6",
-              }}
-            >
-              <th style={{ padding: "12px" }}>Cliente</th>
-              <th style={{ padding: "12px" }}>Monto</th>
-              <th style={{ padding: "12px" }}>Cuotas</th>
-              <th style={{ padding: "12px" }}>Frecuencia</th>
-              <th style={{ padding: "12px" }}>Total a Pagar</th>
-              <th style={{ padding: "12px" }}>Estado</th>
-              <th style={{ padding: "12px", textAlign: "center" }}>Acciones</th>
+            <tr className="border-b border-neutral-800 text-xs uppercase tracking-wider text-neutral-400 bg-black/40">
+              <th className="p-4">Cliente</th>
+              <th className="p-4">Monto</th>
+              <th className="p-4">Cuotas</th>
+              <th className="p-4">Frecuencia</th>
+              <th className="p-4">Total a Pagar</th>
+              <th className="p-4">Estado</th>
+              <th className="p-4 text-center">Acciones</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-neutral-800/60 text-sm">
             {loans.length === 0 ? (
               <tr>
-                <td
-                  colSpan="7"
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    color: "#777",
-                  }}
-                >
+                <td colSpan="7" className="text-center py-10 text-neutral-500">
                   No hay préstamos cargados.
                 </td>
               </tr>
             ) : (
               loans.map((loan) => (
-                <tr key={loan.id} style={{ borderBottom: "1px solid #eee" }}>
-                  <td style={{ padding: "12px" }}>
+                <tr
+                  key={loan.id}
+                  className="hover:bg-neutral-800/30 transition-colors"
+                >
+                  <td className="p-4 font-bold text-white">
                     {loan.client?.name || "N/A"}
                   </td>
-                  <td style={{ padding: "12px" }}>${loan.amount}</td>
-                  <td style={{ padding: "12px" }}>{loan.installments}</td>
-                  <td style={{ padding: "12px" }}>{loan.frequency}</td>
-                  <td
-                    style={{
-                      padding: "12px",
-                      fontWeight: "bold",
-                      color: "#28a745",
-                    }}
-                  >
+                  <td className="p-4 text-neutral-300">${loan.amount}</td>
+                  <td className="p-4 text-neutral-400">{loan.installments}</td>
+                  <td className="p-4 text-neutral-400">{loan.frequency}</td>
+                  <td className="p-4 font-semibold text-emerald-400">
                     ${loan.totalToPay}
                   </td>
-                  <td style={{ padding: "12px" }}>
+                  <td className="p-4">
                     <span
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        background:
-                          loan.status === "PAGADO" ? "#d4edda" : "#e2f0d9",
-                        color: loan.status === "PAGADO" ? "#155724" : "#385723",
-                        fontSize: "0.85rem",
-                        fontWeight: "bold",
-                      }}
+                      className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold border ${
+                        loan.status === "PAGADO"
+                          ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
+                          : "bg-amber-950/40 text-amber-400 border-amber-900/40"
+                      }`}
                     >
                       {loan.status}
                     </span>
                   </td>
 
-                  {/* Celda unificada de Acciones para mantener el orden de la tabla */}
-                  <td style={{ padding: "12px", textAlign: "center" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "6px",
-                        justifyContent: "center",
-                      }}
-                    >
+                  {/* Celda unificada de Acciones */}
+                  <td className="p-4 text-center">
+                    <div className="flex gap-2 justify-center">
                       {loan.status !== "PAGADO" && (
                         <button
                           onClick={() => handlePayClick(loan)}
-                          style={{
-                            background: "#27ae60",
-                            color: "white",
-                            border: "none",
-                            padding: "6px 10px",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "0.85rem",
-                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
                         >
                           Pagar 💵
                         </button>
@@ -140,15 +94,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
 
                       <button
                         onClick={() => onDeleteLoan(loan.id)}
-                        style={{
-                          background: "#dc3545",
-                          color: "white",
-                          border: "none",
-                          padding: "6px 10px",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          fontSize: "0.85rem",
-                        }}
+                        className="bg-neutral-800 hover:bg-red-950/60 text-red-400 border border-neutral-700 hover:border-red-900 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
                       >
                         Eliminar
                       </button>

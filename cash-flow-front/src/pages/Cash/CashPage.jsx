@@ -56,265 +56,209 @@ export default function CashPage() {
   };
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        fontFamily: "Arial, sans-serif",
-        maxWidth: "1000px",
-        margin: "0 auto",
-      }}
-    >
-      <h2
-        style={{
-          color: "#2c3e50",
-          borderBottom: "2px solid #eee",
-          paddingBottom: "10px",
-        }}
-      >
-        Gestión de Caja
-      </h2>
+    <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Cabecera */}
+        <div className="border-b border-neutral-800 pb-5">
+          <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+            <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></span>
+            Gestión de Caja & Flujo
+          </h2>
+          <p className="text-sm text-neutral-400 mt-1">
+            Panel de control financiero, control de efectivo y registros
+            operativos.
+          </p>
+        </div>
 
-      {/* Tarjeta de Balance */}
-      <div
-        style={{
-          background: balanceData.balance >= 0 ? "#d4edda" : "#f8d7da",
-          color: balanceData.balance >= 0 ? "#155724" : "#721c24",
-          padding: "20px",
-          borderRadius: "8px",
-          margin: "20px 0",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: "1.2rem" }}>
-          Balance Actual en Caja
-        </h3>
-        <p
-          style={{
-            fontSize: "2.5rem",
-            fontWeight: "bold",
-            margin: "10px 0 0 0",
-          }}
-        >
-          ${balanceData.balance.toFixed(2)}
-        </p>
-      </div>
-
-      {/* Formulario de Registro Manual */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "8px",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          marginBottom: "30px",
-        }}
-      >
-        <h3 style={{ marginTop: 0, color: "#333" }}>
-          Registrar Movimiento Manual
-        </h3>
+        {/* Tarjeta de Balance */}
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: "15px",
-          }}
+          className={`p-6 rounded-2xl border ${
+            balanceData.balance >= 0
+              ? "bg-neutral-900/80 border-red-900/40 shadow-lg shadow-red-950/20"
+              : "bg-red-950/20 border-red-600/50 shadow-lg shadow-red-900/30"
+          } backdrop-blur-sm transition-all`}
         >
-          <div>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "5px",
-                fontWeight: "bold",
-              }}
-            >
-              Tipo
-            </label>
-            <select
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-              style={{
-                width: "100%",
-                padding: "8px",
-                borderRadius: "4px",
-                border: "1px solid #ccc",
-              }}
-            >
-              <option value="INGRESO">Ingreso</option>
-              <option value="EGRESO">Egreso</option>
-            </select>
-          </div>
-          <div>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "5px",
-                fontWeight: "bold",
-              }}
-            >
-              Categoría
-            </label>
-            <input
-              type="text"
-              placeholder="Ej. Gasto oficina, Retiro..."
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              required
-              style={{
-                width: "100%",
-                padding: "8px",
-                borderRadius: "4px",
-                border: "1px solid #ccc",
-              }}
-            />
-          </div>
-          <div>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "5px",
-                fontWeight: "bold",
-              }}
-            >
-              Monto ($)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              required
-              style={{
-                width: "100%",
-                padding: "8px",
-                borderRadius: "4px",
-                border: "1px solid #ccc",
-              }}
-            />
-          </div>
-          <div>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "5px",
-                fontWeight: "bold",
-              }}
-            >
-              Descripción
-            </label>
-            <input
-              type="text"
-              placeholder="Detalle opcional..."
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              style={{
-                width: "100%",
-                padding: "8px",
-                borderRadius: "4px",
-                border: "1px solid #ccc",
-              }}
-            />
+          <h3 className="text-sm font-medium uppercase tracking-wider text-neutral-400">
+            Balance Actual en Caja
+          </h3>
+          <p
+            className={`text-4xl md:text-5xl font-black mt-2 tracking-tight ${
+              balanceData.balance >= 0 ? "text-white" : "text-red-500"
+            }`}
+          >
+            ${balanceData.balance.toFixed(2)}
+          </p>
+          <div className="mt-4 flex items-center gap-2 text-xs text-neutral-400">
+            <span className="px-2 py-0.5 rounded-full bg-neutral-800 text-red-400 font-semibold border border-neutral-700">
+              {balanceData.totalMovements} Movimientos registrados
+            </span>
           </div>
         </div>
-        <button
-          type="submit"
-          style={{
-            marginTop: "15px",
-            background: "#3498db",
-            color: "white",
-            border: "none",
-            padding: "10px 20px",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          Guardar Movimiento
-        </button>
-      </form>
 
-      {/* Tabla de Movimientos */}
-      <h3 style={{ color: "#333" }}>Historial de Movimientos</h3>
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            background: "white",
-            borderRadius: "8px",
-            overflow: "hidden",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-          }}
-        >
-          <thead>
-            <tr
-              style={{
-                background: "#f8f9fa",
-                textAlign: "left",
-                borderBottom: "2px solid #dee2e6",
-              }}
+        {/* Formulario de Registro Manual */}
+        <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <svg
+              className="w-5 h-5 text-red-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <th style={{ padding: "12px" }}>Fecha</th>
-              <th style={{ padding: "12px" }}>Tipo</th>
-              <th style={{ padding: "12px" }}>Categoría</th>
-              <th style={{ padding: "12px" }}>Descripción</th>
-              <th style={{ padding: "12px" }}>Monto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {movements.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="5"
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    color: "#777",
-                  }}
-                >
-                  No hay movimientos registrados.
-                </td>
-              </tr>
-            ) : (
-              movements.map((mov) => (
-                <tr key={mov.id} style={{ borderBottom: "1px solid #eee" }}>
-                  <td style={{ padding: "12px" }}>
-                    {new Date(mov.createdAt).toLocaleString()}
-                  </td>
-                  <td style={{ padding: "12px" }}>
-                    <span
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        background:
-                          mov.type === "INGRESO" ? "#d4edda" : "#f8d7da",
-                        color: mov.type === "INGRESO" ? "#155724" : "#721c24",
-                        fontWeight: "bold",
-                        fontSize: "0.85rem",
-                      }}
-                    >
-                      {mov.type}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px" }}>{mov.category}</td>
-                  <td style={{ padding: "12px" }}>{mov.description || "-"}</td>
-                  <td
-                    style={{
-                      padding: "12px",
-                      fontWeight: "bold",
-                      color: mov.type === "INGRESO" ? "#28a745" : "#dc3545",
-                    }}
-                  >
-                    {mov.type === "INGRESO" ? "+" : "-"}${mov.amount.toFixed(2)}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 4v16m8-8H4"
+              ></path>
+            </svg>
+            Registrar Movimiento Manual
+          </h3>
+
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Tipo
+              </label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors"
+              >
+                <option value="INGRESO">Ingreso</option>
+                <option value="EGRESO">Egreso</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Categoría
+              </label>
+              <input
+                type="text"
+                placeholder="Ej. Oficina, Retiro..."
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                required
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Monto ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                required
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                Descripción
+              </label>
+              <input
+                type="text"
+                placeholder="Detalle opcional..."
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+              />
+            </div>
+
+            <div className="sm:col-span-2 lg:col-span-4 flex justify-end mt-2">
+              <button
+                type="submit"
+                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer"
+              >
+                Guardar Movimiento
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Historial de Movimientos */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-bold text-white">
+            Historial de Movimientos
+          </h3>
+
+          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-neutral-800 text-xs uppercase tracking-wider text-neutral-400 bg-black/40">
+                    <th className="p-4">Fecha</th>
+                    <th className="p-4">Tipo</th>
+                    <th className="p-4">Categoría</th>
+                    <th className="p-4">Descripción</th>
+                    <th className="p-4 text-right">Monto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800/60 text-sm">
+                  {movements.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="text-center py-10 text-neutral-500"
+                      >
+                        No hay movimientos registrados en la caja.
+                      </td>
+                    </tr>
+                  ) : (
+                    movements.map((mov) => (
+                      <tr
+                        key={mov.id}
+                        className="hover:bg-neutral-800/30 transition-colors"
+                      >
+                        <td className="p-4 text-neutral-400 text-xs">
+                          {new Date(mov.createdAt).toLocaleString()}
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                              mov.type === "INGRESO"
+                                ? "bg-red-950/30 text-red-400 border-red-900/50"
+                                : "bg-neutral-900 text-neutral-300 border-neutral-700"
+                            }`}
+                          >
+                            {mov.type}
+                          </span>
+                        </td>
+                        <td className="p-4 font-medium text-white">
+                          {mov.category}
+                        </td>
+                        <td className="p-4 text-neutral-400">
+                          {mov.description || "-"}
+                        </td>
+                        <td
+                          className={`p-4 text-right font-bold tracking-tight ${
+                            mov.type === "INGRESO"
+                              ? "text-red-500"
+                              : "text-neutral-300"
+                          }`}
+                        >
+                          {mov.type === "INGRESO" ? "+" : "-"}$
+                          {mov.amount.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
