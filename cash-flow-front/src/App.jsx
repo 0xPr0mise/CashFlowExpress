@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar"; // O donde decidas ubicarlo
 import LoansPage from "./pages/Loans/LoansPage";
 import ClientsPage from "./pages/Clients/ClientsPage"; // Si tienes tu página de clientes separada
 import CashPage from "./pages/Cash/CashPage";
+import AnalyticsPage from "./pages/Analytics/AnalyticsPage"; // Si tienes tu página de análisis separada
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/loans" element={<LoansPage />} />
             <Route path="/cash" element={<CashPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
           </Routes>
         </div>
       </div>
