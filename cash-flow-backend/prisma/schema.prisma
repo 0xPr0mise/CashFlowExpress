@@ -69,3 +69,9 @@ model CashMovement {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
 }
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
