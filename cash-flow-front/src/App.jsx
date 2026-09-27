@@ -4,6 +4,7 @@ import LoansPage from "./pages/Loans/LoansPage";
 import ClientsPage from "./pages/Clients/ClientsPage"; // Si tienes tu página de clientes separada
 import CashPage from "./pages/Cash/CashPage";
 import AnalyticsPage from "./pages/Analytics/AnalyticsPage"; // Si tienes tu página de análisis separada
+import SettingsPage from "./pages/Settings/SettingsPage"; // Si tienes tu página de configuración separada
 
 export default function App() {
   return (
@@ -22,6 +23,8 @@ export default function App() {
             <Route path="/loans" element={<LoansPage />} />
             <Route path="/cash" element={<CashPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+
           </Routes>
         </div>
       </div>

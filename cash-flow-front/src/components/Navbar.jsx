@@ -7,6 +7,7 @@ export default function Navbar() {
       <Link to="/clients" style={{ color: "white", textDecoration: "none", fontWeight: "bold" }}>Clientes</Link>
       <Link to="/cash" style={{ color: "white", textDecoration: "none", fontWeight: "bold" }}>Caja</Link>
       <Link to="/analytics" style={{ color: "white", textDecoration: "none", fontWeight: "bold" }}>Analíticas</Link>
+      <Link to="/settings" style={{ color: "white", textDecoration: "none", fontWeight: "bold" }}>Configuración</Link>
     </nav>
   );
 }
