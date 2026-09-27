@@ -1,19 +1,21 @@
-// cash-flow-front/src/App.jsx
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar"; // O donde decidas ubicarlo
+import LoansPage from "./pages/Loans/LoansPage";
+import ClientsPage from "./pages/Clients/ClientsPage"; // Si tienes tu página de clientes separada
 
-import ClientsPage from './pages/Clients/ClientsPage'; // o ClientPage si lo dejaste en singular
-import LoansPage from './pages/Loans/LoansPage';
-
-function App() {
+export default function App() {
   return (
-    <div>
-      <header style={{ background: '#222', color: 'white', padding: '15px', textAlign: 'center' }}>
-        <h1>Cash Flow & Préstamos</h1>
-      </header>
-      
-      <ClientsPage />
-      <LoansPage />
-    </div>
+    <Router>
+      <div style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh", background: "#f8f9fa" }}>
+        <Navbar />
+        <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
+          <Routes>
+            <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/loans" element={<LoansPage />} />
+            {/* <Route path="/clients" element={<ClientsPage />} /> */}
+          </Routes>
+        </div>
+      </div>
+    </Router>
   );
 }
-
-export default App;
