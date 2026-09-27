@@ -6,7 +6,13 @@ import ClientsPage from "./pages/Clients/ClientsPage"; // Si tienes tu página d
 export default function App() {
   return (
     <Router>
-      <div style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh", background: "#f8f9fa" }}>
+      <div
+        style={{
+          fontFamily: "Arial, sans-serif",
+          minHeight: "100vh",
+          background: "#f8f9fa",
+        }}
+      >
         <Navbar />
         <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
           <Routes>

@@ -25,4 +25,17 @@ export class LoansController {
   remove(@Param('id') id: string) {
     return this.loansService.remove(id);
   }
+
+  @Post(':id/pay')
+  async registerPayment(
+    @Param('id') loanId: string,
+    @Body() body: { amount: number; paymentMethod?: string; note?: string },
+  ) {
+    return this.loansService.registerPayment(
+      loanId,
+      body.amount,
+      body.paymentMethod,
+      body.note,
+    );
+  }
 }

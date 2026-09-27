@@ -29,3 +29,13 @@ export async function deleteLoan(id) {
   if (!res.ok) throw new Error("Error al eliminar el préstamo");
   return res.json();
 }
+
+export async function payLoan(loanId, paymentData) {
+  const res = await fetch(`http://localhost:3000/loans/${loanId}/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(paymentData),
+  });
+  if (!res.ok) throw new Error("Error al registrar el pago");
+  return res.json();
+}
