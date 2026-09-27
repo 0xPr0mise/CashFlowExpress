@@ -11,12 +11,16 @@ export default function CashPage() {
     balance: 0,
     totalMovements: 0,
   });
+
   const [form, setForm] = useState({
     type: "INGRESO",
-    category: "EXTRA",
+    category: "COBRO_CUOTA",
     amount: "",
     description: "",
   });
+
+  const [filter, setFilter] = useState("TODOS"); // 'TODOS', 'INGRESO', 'EGRESO'
+  const [loading, setLoading] = useState(false);
 
   const loadCashData = async () => {
     try {
@@ -37,6 +41,7 @@ export default function CashPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       await createCashMovement({
         ...form,
@@ -44,58 +49,106 @@ export default function CashPage() {
       });
       setForm({
         type: "INGRESO",
-        category: "EXTRA",
+        category: "COBRO_CUOTA",
         amount: "",
         description: "",
       });
-      loadCashData();
+      await loadCashData();
     } catch (error) {
       console.error("Error al guardar movimiento:", error);
-      alert("Error al registrar el movimiento");
+      alert("Error al registrar el movimiento en el servidor");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Cálculos dinámicos basados en los movimientos cargados
+  const totalIncomes = movements
+    .filter((m) => m.type === "INGRESO")
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  const totalExpenses = movements
+    .filter((m) => m.type === "EGRESO")
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  // Filtrado de movimientos para la tabla
+  const filteredMovements = movements.filter((mov) => {
+    if (filter === "TODOS") return true;
+    return mov.type === filter;
+  });
+
   return (
     <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-8">
         {/* Cabecera */}
-        <div className="border-b border-neutral-800 pb-5">
-          <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-            <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></span>
-            Gestión de Caja & Flujo
-          </h2>
-          <p className="text-sm text-neutral-400 mt-1">
-            Panel de control financiero, control de efectivo y registros
-            operativos.
-          </p>
+        <div className="border-b border-neutral-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+              <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-lg shadow-red-600/50"></span>
+              Gestión de Caja y Flujo Financiero
+            </h2>
+            <p className="text-sm text-neutral-400 mt-1">
+              Control absoluto de entradas, salidas y liquidez disponible en
+              tiempo real.
+            </p>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-xs text-neutral-400 flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+            Caja Activa
+          </div>
         </div>
 
-        {/* Tarjeta de Balance */}
-        <div
-          className={`p-6 rounded-2xl border ${
-            balanceData.balance >= 0
-              ? "bg-neutral-900/80 border-red-900/40 shadow-lg shadow-red-950/20"
-              : "bg-red-950/20 border-red-600/50 shadow-lg shadow-red-900/30"
-          } backdrop-blur-sm transition-all`}
-        >
-          <h3 className="text-sm font-medium uppercase tracking-wider text-neutral-400">
-            Balance Actual en Caja
-          </h3>
-          <p
-            className={`text-4xl md:text-5xl font-black mt-2 tracking-tight ${
-              balanceData.balance >= 0 ? "text-white" : "text-red-500"
+        {/* Tarjetas de Métricas de Caja (Grid Superior) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {/* Balance Actual */}
+          <div
+            className={`p-6 rounded-2xl border backdrop-blur-sm transition-all bg-neutral-900/60 ${
+              balanceData.balance >= 0
+                ? "border-neutral-800 border-l-4 border-l-emerald-500"
+                : "border-red-900/60 border-l-4 border-l-red-600"
             }`}
           >
-            ${balanceData.balance.toFixed(2)}
-          </p>
-          <div className="mt-4 flex items-center gap-2 text-xs text-neutral-400">
-            <span className="px-2 py-0.5 rounded-full bg-neutral-800 text-red-400 font-semibold border border-neutral-700">
-              {balanceData.totalMovements} Movimientos registrados
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Balance Neto Disponible
+            </h3>
+            <p
+              className={`text-4xl font-black tracking-tight ${balanceData.balance >= 0 ? "text-emerald-400" : "text-red-500"}`}
+            >
+              ${balanceData.balance.toFixed(2)}
+            </p>
+            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
+              {balanceData.totalMovements} transacciones totales
+            </span>
+          </div>
+
+          {/* Ingresos Totales Históricos */}
+          <div className="bg-neutral-900/60 border border-neutral-800 border-l-4 border-l-red-600 p-6 rounded-2xl backdrop-blur-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Ingresos Totales Acumulados
+            </h3>
+            <p className="text-3xl font-black text-red-500 tracking-tight">
+              +${totalIncomes.toFixed(2)}
+            </p>
+            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
+              Cobros y aportes de capital
+            </span>
+          </div>
+
+          {/* Egresos Totales Históricos */}
+          <div className="bg-neutral-900/60 border border-neutral-800 border-l-4 border-l-neutral-500 p-6 rounded-2xl backdrop-blur-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Egresos / Retiros Totales
+            </h3>
+            <p className="text-3xl font-black text-neutral-300 tracking-tight">
+              -${totalExpenses.toFixed(2)}
+            </p>
+            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
+              Préstamos emitidos y gastos
             </span>
           </div>
         </div>
 
-        {/* Formulario de Registro Manual */}
+        {/* Formulario de Registro de Movimiento */}
         <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <svg
@@ -111,7 +164,7 @@ export default function CashPage() {
                 d="M12 4v16m8-8H4"
               ></path>
             </svg>
-            Registrar Movimiento Manual
+            Registrar Nuevo Movimiento de Caja
           </h3>
 
           <form
@@ -120,15 +173,15 @@ export default function CashPage() {
           >
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                Tipo
+                Tipo de Operación
               </label>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
                 className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors"
               >
-                <option value="INGRESO">Ingreso</option>
-                <option value="EGRESO">Egreso</option>
+                <option value="INGRESO">Ingreso (+)</option>
+                <option value="EGRESO">Egreso (-)</option>
               </select>
             </div>
 
@@ -136,14 +189,28 @@ export default function CashPage() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                 Categoría
               </label>
-              <input
-                type="text"
-                placeholder="Ej. Oficina, Retiro..."
+              <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                required
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
-              />
+                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors"
+              >
+                {form.type === "INGRESO" ? (
+                  <>
+                    <option value="COBRO_CUOTA">Cobro de Cuota</option>
+                    <option value="APORTE_CAPITAL">Aporte de Capital</option>
+                    <option value="INGRESO_EXTRA">Ingreso Extra / Otro</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="PRESTAMO_OTORGADO">Préstamo Otorgado</option>
+                    <option value="GASTO_OPERATIVO">
+                      Gasto Operativo / Oficina
+                    </option>
+                    <option value="RETIRO_SOCIO">Retiro de Socio</option>
+                    <option value="EGRESO_EXTRA">Egreso Extra / Otro</option>
+                  </>
+                )}
+              </select>
             </div>
 
             <div>
@@ -163,7 +230,7 @@ export default function CashPage() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                Descripción
+                Descripción / Referencia
               </label>
               <input
                 type="text"
@@ -176,29 +243,66 @@ export default function CashPage() {
               />
             </div>
 
-            <div className="sm:col-span-2 lg:col-span-4 flex justify-end mt-2">
+            <div className="sm:col-span-2 lg:col-span-4 flex justify-end pt-2">
               <button
                 type="submit"
-                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer"
+                disabled={loading}
+                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer disabled:opacity-50"
               >
-                Guardar Movimiento
+                {loading ? "Registrando..." : "Guardar Movimiento"}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Historial de Movimientos */}
+        {/* Historial de Movimientos y Filtros */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white">
-            Historial de Movimientos
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h3 className="text-lg font-bold text-white">
+              Historial de Transacciones
+            </h3>
 
-          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+            {/* Pestañas de Filtrado */}
+            <div className="flex items-center gap-1.5 bg-neutral-900/80 p-1 border border-neutral-800 rounded-xl">
+              <button
+                onClick={() => setFilter("TODOS")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filter === "TODOS"
+                    ? "bg-red-600 text-white shadow-md shadow-red-950/50"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setFilter("INGRESO")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filter === "INGRESO"
+                    ? "bg-red-600 text-white shadow-md shadow-red-950/50"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                Ingresos
+              </button>
+              <button
+                onClick={() => setFilter("EGRESO")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filter === "EGRESO"
+                    ? "bg-red-600 text-white shadow-md shadow-red-950/50"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                Egresos
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl backdrop-blur-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-neutral-800 text-xs uppercase tracking-wider text-neutral-400 bg-black/40">
-                    <th className="p-4">Fecha</th>
+                    <th className="p-4">Fecha y Hora</th>
                     <th className="p-4">Tipo</th>
                     <th className="p-4">Categoría</th>
                     <th className="p-4">Descripción</th>
@@ -206,17 +310,17 @@ export default function CashPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60 text-sm">
-                  {movements.length === 0 ? (
+                  {filteredMovements.length === 0 ? (
                     <tr>
                       <td
                         colSpan="5"
-                        className="text-center py-10 text-neutral-500"
+                        className="text-center py-12 text-neutral-500"
                       >
-                        No hay movimientos registrados en la caja.
+                        No hay movimientos registrados para este filtro.
                       </td>
                     </tr>
                   ) : (
-                    movements.map((mov) => (
+                    filteredMovements.map((mov) => (
                       <tr
                         key={mov.id}
                         className="hover:bg-neutral-800/30 transition-colors"
@@ -226,26 +330,26 @@ export default function CashPage() {
                         </td>
                         <td className="p-4">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border ${
                               mov.type === "INGRESO"
-                                ? "bg-red-950/30 text-red-400 border-red-900/50"
-                                : "bg-neutral-900 text-neutral-300 border-neutral-700"
+                                ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
+                                : "bg-red-950/40 text-red-400 border-red-900/40"
                             }`}
                           >
                             {mov.type}
                           </span>
                         </td>
-                        <td className="p-4 font-medium text-white">
+                        <td className="p-4 font-semibold text-white">
                           {mov.category}
                         </td>
                         <td className="p-4 text-neutral-400">
                           {mov.description || "-"}
                         </td>
                         <td
-                          className={`p-4 text-right font-bold tracking-tight ${
+                          className={`p-4 text-right font-black tracking-tight ${
                             mov.type === "INGRESO"
-                              ? "text-red-500"
-                              : "text-neutral-300"
+                              ? "text-emerald-400"
+                              : "text-red-400"
                           }`}
                         >
                           {mov.type === "INGRESO" ? "+" : "-"}$

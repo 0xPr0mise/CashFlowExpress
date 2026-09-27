@@ -7,6 +7,9 @@ import {
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -42,6 +45,7 @@ export default function ClientsPage() {
       return;
     }
 
+    setLoading(true);
     try {
       await createClient({
         ...form,
@@ -56,9 +60,12 @@ export default function ClientsPage() {
         reference: "",
         creditLimit: "",
       });
-      loadClients();
+      await loadClients();
     } catch (error) {
       console.error("Error al crear cliente:", error);
+      alert("Error al registrar el cliente en el servidor");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,26 +73,77 @@ export default function ClientsPage() {
     if (confirm("¿Estás seguro de eliminar este cliente?")) {
       try {
         await deleteClient(id);
-        loadClients();
+        await loadClients();
       } catch (error) {
         console.error("Error al eliminar cliente:", error);
+        alert("Error al eliminar el cliente");
       }
     }
   };
+
+  // Filtrado de clientes basado en el término de búsqueda
+  const filteredClients = clients.filter((client) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      client.name.toLowerCase().includes(term) ||
+      client.phone.toLowerCase().includes(term) ||
+      (client.dni && client.dni.toLowerCase().includes(term))
+    );
+  });
+
+  // Métricas calculadas
+  const totalCreditLimit = clients.reduce(
+    (acc, curr) => acc + (curr.creditLimit || 0),
+    0,
+  );
 
   return (
     <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Cabecera */}
-        <div className="border-b border-neutral-800 pb-5">
-          <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-            <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></span>
-            Gestión de Clientes
-          </h2>
-          <p className="text-sm text-neutral-400 mt-1">
-            Administración de cartera de clientes, límites de crédito y datos
-            personales.
-          </p>
+        <div className="border-b border-neutral-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+              <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-lg shadow-red-600/50"></span>
+              Gestión de Cartera de Clientes
+            </h2>
+            <p className="text-sm text-neutral-400 mt-1">
+              Administración de clientes, límites de crédito y datos operativos.
+            </p>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-xs text-neutral-400 flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+            Sistema Activo
+          </div>
+        </div>
+
+        {/* Tarjetas de Métricas de Cartera */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {/* Total Clientes */}
+          <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-red-600 bg-neutral-900/60 backdrop-blur-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Total de Clientes Registrados
+            </h3>
+            <p className="text-4xl font-black text-white tracking-tight">
+              {clients.length}
+            </p>
+            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
+              Cartera activa general
+            </span>
+          </div>
+
+          {/* Límite de Crédito Total Otorgado */}
+          <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-emerald-500 bg-neutral-900/60 backdrop-blur-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Límite de Crédito Total Otorgado
+            </h3>
+            <p className="text-4xl font-black text-emerald-400 tracking-tight">
+              ${totalCreditLimit.toFixed(2)}
+            </p>
+            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
+              Suma máxima de riesgo crediticio
+            </span>
+          </div>
         </div>
 
         {/* Formulario de Registro */}
@@ -187,6 +245,7 @@ export default function ClientsPage() {
                 </label>
                 <input
                   type="number"
+                  step="0.01"
                   name="creditLimit"
                   placeholder="0.00"
                   value={form.creditLimit}
@@ -199,19 +258,33 @@ export default function ClientsPage() {
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer"
+                disabled={loading}
+                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer disabled:opacity-50"
               >
-                Guardar Cliente
+                {loading ? "Guardando..." : "Guardar Cliente"}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Lista de Clientes */}
+        {/* Lista de Clientes y Buscador */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white">Lista de Clientes</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h3 className="text-lg font-bold text-white">Lista de Clientes</h3>
 
-          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+            {/* Buscador Rápido */}
+            <div className="w-full sm:w-72">
+              <input
+                type="text"
+                placeholder="Buscar por nombre, teléfono..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-500"
+              />
+            </div>
+          </div>
+
+          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl backdrop-blur-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -219,23 +292,23 @@ export default function ClientsPage() {
                     <th className="p-4">Nombre</th>
                     <th className="p-4">Teléfono</th>
                     <th className="p-4">DNI</th>
-                    <th className="p-4">Dirección</th>
+                    <th className="p-4">Dirección / Ref</th>
                     <th className="p-4">Límite Crédito</th>
                     <th className="p-4 text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60 text-sm">
-                  {clients.length === 0 ? (
+                  {filteredClients.length === 0 ? (
                     <tr>
                       <td
                         colSpan="6"
-                        className="text-center py-10 text-neutral-500"
+                        className="text-center py-12 text-neutral-500"
                       >
-                        No hay clientes registrados todavía.
+                        No se encontraron clientes registrados.
                       </td>
                     </tr>
                   ) : (
-                    clients.map((client) => (
+                    filteredClients.map((client) => (
                       <tr
                         key={client.id}
                         className="hover:bg-neutral-800/30 transition-colors"
@@ -247,10 +320,15 @@ export default function ClientsPage() {
                         <td className="p-4 text-neutral-400">
                           {client.dni || "-"}
                         </td>
-                        <td className="p-4 text-neutral-400">
-                          {client.address || "-"}
+                        <td className="p-4 text-neutral-400 text-xs">
+                          <div>{client.address || "-"}</div>
+                          {client.reference && (
+                            <span className="text-neutral-500 italic">
+                              Ref: {client.reference}
+                            </span>
+                          )}
                         </td>
-                        <td className="p-4 font-semibold text-emerald-400">
+                        <td className="p-4 font-black text-emerald-400 tracking-tight">
                           $
                           {client.creditLimit
                             ? client.creditLimit.toFixed(2)
