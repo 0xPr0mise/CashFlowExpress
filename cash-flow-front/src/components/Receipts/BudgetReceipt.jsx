@@ -37,7 +37,7 @@ export default function BudgetReceipt({ budget, client, settings }) {
           <span className="font-semibold text-neutral-500">
             Validez de Oferta:
           </span>
-          <span>7 días hábiles</span>
+          <span>Sólo por el día de la fecha</span>
         </div>
       </div>
 

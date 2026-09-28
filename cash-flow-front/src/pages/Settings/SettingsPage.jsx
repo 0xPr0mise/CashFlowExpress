@@ -4,7 +4,15 @@ import BudgetReceipt from "../../components/Receipts/BudgetReceipt";
 import LoanDisbursementReceipt from "../../components/Receipts/LoanDisbursementReceipt";
 import PaymentReceipt from "../../components/Receipts/PaymentReceipt";
 
+// Componentes modularizados
+import SettingsNav from "./components/SettingsNav";
+import GeneralSettingsTab from "./components/GeneralSettingsTab";
+import ReceiptSettingsTab from "./components/ReceiptSettingsTab";
+import BackupSettingsTab from "./components/BackupSettingsTab";
+import AboutSettingsTab from "./components/AboutSettingsTab";
+
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState("general"); // 'general' | 'receipts' | 'backup' | 'about'
   const [form, setForm] = useState({
     companyName: "Cash Flow Express",
     currency: "$",
@@ -87,199 +95,48 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Notificación */}
+        {/* Notificación de guardado */}
         {saved && (
           <div className="bg-emerald-950/60 border border-emerald-900/50 text-emerald-400 px-4 py-3 rounded-2xl text-sm flex items-center gap-2 shadow-xl backdrop-blur-sm">
             ¡Configuración y plantillas de recibos guardadas exitosamente!
           </div>
         )}
 
-        {/* Formulario */}
+        {/* Tarjetas de Navegación SPA */}
+        <SettingsNav activeTab={activeTab} setActiveTab={setActiveTab} />
+
+        {/* Contenido Dinámico según la Pestaña Activa */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Identidad */}
-          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-4">
-            <h3 className="text-base font-bold text-white border-b border-neutral-800 pb-3">
-              Identidad Comercial y Regional
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Nombre de la Empresa *
-                </label>
-                <input
-                  type="text"
-                  name="companyName"
-                  value={form.companyName}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Símbolo de Moneda *
-                </label>
-                <input
-                  type="text"
-                  name="currency"
-                  value={form.currency}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-            </div>
-          </div>
+          {activeTab === "general" && (
+            <GeneralSettingsTab form={form} handleChange={handleChange} />
+          )}
 
-          {/* Políticas de Crédito */}
-          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-4">
-            <h3 className="text-base font-bold text-white border-b border-neutral-800 pb-3">
-              Políticas de Crédito y Tasas
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Interés Predeterminado (%) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="defaultInterestRate"
-                  value={form.defaultInterestRate}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Plazo Máximo (Días)
-                </label>
-                <input
-                  type="number"
-                  name="maxLoanTermDays"
-                  value={form.maxLoanTermDays}
-                  onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Mora Diaria (%)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="lateFeePercentage"
-                  value={form.lateFeePercentage}
-                  onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-            </div>
-          </div>
+          {activeTab === "receipts" && (
+            <ReceiptSettingsTab
+              form={form}
+              handleChange={handleChange}
+              setPreviewType={setPreviewType}
+            />
+          )}
 
-          {/* Configuración de Recibos */}
-          <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-4">
-            <h3 className="text-base font-bold text-white border-b border-neutral-800 pb-3">
-              Diseño y Textos de Recibos
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Título del Recibo
-                </label>
-                <input
-                  type="text"
-                  name="receiptHeaderTitle"
-                  value={form.receiptHeaderTitle}
-                  onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Identificación Fiscal (CUIT / RUT)
-                </label>
-                <input
-                  type="text"
-                  name="receiptCompanyId"
-                  value={form.receiptCompanyId}
-                  onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Nota al Pie del Recibo
-                </label>
-                <textarea
-                  name="receiptFooterNote"
-                  rows="2"
-                  value={form.receiptFooterNote}
-                  onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 resize-none"
-                />
-              </div>
-            </div>
+          {activeTab === "backup" && <BackupSettingsTab />}
 
-            {/* Botones de Previsualización */}
-            <div className="pt-3 border-t border-neutral-800">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">
-                Previsualizar Plantillas en Vivo
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPreviewType("budget")}
-                  className="bg-black hover:bg-neutral-800 border border-neutral-800 p-3.5 rounded-xl text-left transition-all cursor-pointer"
-                >
-                  <span className="block text-xs font-bold text-white">
-                    Presupuesto
-                  </span>
-                  <span className="text-[10px] text-neutral-500">
-                    Ver cotización
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewType("loan")}
-                  className="bg-black hover:bg-neutral-800 border border-neutral-800 p-3.5 rounded-xl text-left transition-all cursor-pointer"
-                >
-                  <span className="block text-xs font-bold text-white">
-                    Entrega Préstamo
-                  </span>
-                  <span className="text-[10px] text-neutral-500">
-                    Ver comprobante de salida
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewType("payment")}
-                  className="bg-black hover:bg-neutral-800 border border-neutral-800 p-3.5 rounded-xl text-left transition-all cursor-pointer"
-                >
-                  <span className="block text-xs font-bold text-white">
-                    Pago Parcial
-                  </span>
-                  <span className="text-[10px] text-neutral-500">
-                    Ver ticket de abono
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
+          {activeTab === "about" && <AboutSettingsTab />}
 
-          <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8 py-3 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer disabled:opacity-50"
-            >
-              {loading
-                ? "Guardando Cambios..."
-                : "Guardar Toda la Configuración"}
-            </button>
-          </div>
+          {/* Botón de Guardado Global (visible solo en pestañas editables) */}
+          {(activeTab === "general" || activeTab === "receipts") && (
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8 py-3 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer disabled:opacity-50"
+              >
+                {loading
+                  ? "Guardando Cambios..."
+                  : "Guardar Toda la Configuración"}
+              </button>
+            </div>
+          )}
         </form>
       </div>
 
@@ -292,6 +149,7 @@ export default function SettingsPage() {
                 Vista Previa de Comprobante
               </span>
               <button
+                type="button"
                 onClick={() => setPreviewType(null)}
                 className="text-neutral-400 hover:text-white text-sm font-bold px-2 py-1 bg-neutral-800 rounded-lg cursor-pointer"
               >
@@ -299,7 +157,6 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            {/* Renderizado Dinámico del Recibo Seleccionado */}
             <div className="max-h-[80vh] overflow-y-auto">
               {previewType === "budget" && <BudgetReceipt settings={form} />}
               {previewType === "loan" && (
