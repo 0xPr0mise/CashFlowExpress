@@ -4,15 +4,24 @@ import {
   createClient,
   deleteClient,
 } from "../../services/client.service";
+import { getLoans } from "../../services/loans.service";
 import ClientMetricsCard from "./components/ClientMetricsCard";
 import ClientForm from "./components/ClientForm";
 import ClientTable from "./components/ClientTable";
+import ClientReferralsModal from "./components/ClientReferralsModal";
+import ClientLoansModal from "./components/ClientLoansModal"; // <--- Importamos el componente
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
+  const [loans, setLoans] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReferralsModalOpen, setIsReferralsModalOpen] = useState(false);
+
+  // Estados para el modal de préstamos
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [isLoansModalOpen, setIsLoansModalOpen] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -21,22 +30,60 @@ export default function ClientsPage() {
     address: "",
     reference: "",
     creditLimit: "",
-    referredById: "", // <- Añadido para el campo de referencia
+    referredById: "",
   });
 
-  const loadClients = async () => {
+  const loadData = async () => {
     try {
-      const data = await getClients();
-      if (Array.isArray(data)) {
-        setClients(data);
+      const [clientsData, loansData] = await Promise.all([
+        getClients(),
+        getLoans().catch(() => []),
+      ]);
+
+      const validLoans = Array.isArray(loansData) ? loansData : [];
+      setLoans(validLoans);
+
+      if (Array.isArray(clientsData)) {
+        const enrichedClients = clientsData.map((client) => {
+          const clientLoans = validLoans.filter((loan) => {
+            const loanClientId =
+              loan.clientId ||
+              loan.client_id ||
+              loan.userId ||
+              loan.user_id ||
+              (loan.client && loan.client.id);
+
+            return loanClientId != null && loanClientId == client.id;
+          });
+
+          const totalPending = clientLoans.reduce((sum, loan) => {
+            const amount = Number(
+              loan.remainingAmount ??
+                loan.balance ??
+                loan.pendingAmount ??
+                loan.pending_amount ??
+                loan.amount ??
+                0,
+            );
+            return sum + amount;
+          }, 0);
+
+          return {
+            ...client,
+            totalPending,
+            clientLoans,
+          };
+        });
+
+        setClients(enrichedClients);
       }
     } catch (error) {
-      console.error("Error al cargar clientes:", error);
+      console.error("Error al cargar los datos:", error);
     }
   };
 
   useEffect(() => {
-    loadClients();
+    loadData();
   }, []);
 
   const handleChange = (e) => {
@@ -55,7 +102,6 @@ export default function ClientsPage() {
       await createClient({
         ...form,
         creditLimit: form.creditLimit ? parseFloat(form.creditLimit) : 0,
-        // Si no se selecciona ningún cliente, mandamos null para que Prisma lo acepte correctamente
         referredById: form.referredById ? form.referredById : null,
       });
 
@@ -69,7 +115,7 @@ export default function ClientsPage() {
         referredById: "",
       });
       setIsModalOpen(false);
-      await loadClients();
+      await loadData();
     } catch (error) {
       console.error("Error al crear cliente:", error);
       alert("Error al registrar el cliente en el servidor");
@@ -82,12 +128,17 @@ export default function ClientsPage() {
     if (confirm("¿Estás seguro de eliminar este cliente?")) {
       try {
         await deleteClient(id);
-        await loadClients();
+        await loadData();
       } catch (error) {
         console.error("Error al eliminar cliente:", error);
         alert("Error al eliminar el cliente");
       }
     }
+  };
+
+  const handleOpenLoansModal = (client) => {
+    setSelectedClient(client);
+    setIsLoansModalOpen(true);
   };
 
   const filteredClients = clients.filter((client) => {
@@ -99,15 +150,14 @@ export default function ClientsPage() {
     );
   });
 
-  const totalCreditLimit = clients.reduce(
-    (acc, curr) => acc + (curr.creditLimit || 0),
+  const totalPendingPortfolio = clients.reduce(
+    (acc, curr) => acc + (curr.totalPending || 0),
     0,
   );
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
+    <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans relative">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Cabecera */}
         <div className="border-b border-neutral-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
@@ -115,7 +165,7 @@ export default function ClientsPage() {
               Gestión de Cartera de Clientes
             </h2>
             <p className="text-sm text-neutral-400 mt-1">
-              Administración de clientes, límites de crédito y datos operativos.
+              Administración de clientes, saldos pendientes y datos operativos.
             </p>
           </div>
 
@@ -124,34 +174,36 @@ export default function ClientsPage() {
               onClick={() => setIsModalOpen(true)}
               className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer flex items-center gap-2"
             >
+              Nuevo Cliente
+            </button>
+            <button
+              onClick={() => setIsReferralsModalOpen(true)}
+              className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 active:scale-[0.98] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-500 shadow-sm cursor-pointer"
+            >
+              {/* Ícono de usuarios (puedes cambiarlo por el de Lucide React si usas) */}
               <svg
-                className="w-4 h-4"
+                className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors"
                 fill="none"
-                stroke="currentColor"
                 viewBox="0 0 24 24"
+                stroke="currentColor"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 4v16m8-8H4"
-                ></path>
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
               </svg>
-              Nuevo Cliente
+              Ver Red de Referidos
             </button>
-            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-xs text-neutral-400 hidden sm:flex items-center gap-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-              Sistema Activo
-            </div>
           </div>
         </div>
 
         <ClientMetricsCard
           clients={clients}
-          totalCreditLimit={totalCreditLimit}
+          totalCreditLimit={totalPendingPortfolio}
         />
 
-        {/* Modal con la lista de clientes para el selector de referencias */}
         <ClientForm
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
@@ -162,13 +214,27 @@ export default function ClientsPage() {
           clients={clients}
         />
 
+        <ClientReferralsModal
+          isOpen={isReferralsModalOpen}
+          onClose={() => setIsReferralsModalOpen(false)}
+          clients={clients}
+        />
+
         <ClientTable
           filteredClients={filteredClients}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           handleDelete={handleDelete}
+          handleOpenLoansModal={handleOpenLoansModal}
         />
       </div>
+
+      {/* Renderizamos el componente del modal de préstamos */}
+      <ClientLoansModal
+        isOpen={isLoansModalOpen}
+        onClose={() => setIsLoansModalOpen(false)}
+        selectedClient={selectedClient}
+      />
     </div>
   );
 }

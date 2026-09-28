@@ -48,4 +48,5 @@ export async function deleteClient(id) {
     console.error("Error al eliminar cliente:", err);
     throw err;
   }
+
 }

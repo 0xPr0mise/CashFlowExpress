@@ -39,3 +39,9 @@ export async function payLoan(loanId, paymentData) {
   if (!res.ok) throw new Error("Error al registrar el pago");
   return res.json();
 }
+
+export async function getLoansByClient(clientId) {
+  const res = await fetch(`${API_URL}/loans?clientId=${clientId}`);
+  if (!res.ok) throw new Error("Error al obtener los préstamos del cliente");
+  return res.json();
+}
