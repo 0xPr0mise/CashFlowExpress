@@ -6,4 +6,6 @@ export class CreateClientDto {
   address?: string;
   reference?: string;
   creditLimit?: number;
+  referredById?: string;
+  email?: string;
 }
