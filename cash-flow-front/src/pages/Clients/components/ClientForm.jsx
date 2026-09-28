@@ -72,6 +72,7 @@ export default function ClientForm({
               />
             </div>
 
+            {/* DNI y Dirección juntos */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                 DNI
@@ -87,21 +88,6 @@ export default function ClientForm({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                Límite de Crédito ($)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                name="creditLimit"
-                placeholder="0.00"
-                value={form.creditLimit}
-                onChange={handleChange}
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                 Dirección
               </label>
@@ -129,7 +115,7 @@ export default function ClientForm({
               />
             </div>
 
-            {/* Nuevo Campo: Cliente que Referencia */}
+            {/* Cliente que Referencia */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                 ¿Qué cliente lo refirió? (Opcional)

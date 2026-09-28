@@ -1,26 +1,45 @@
 import { useState, useEffect } from "react";
 import { getLoans, createLoan, deleteLoan } from "../../services/loans.service";
 import { getClients } from "../../services/client.service";
+import { getSettings } from "../../services/settings.service"; // <- Importado correctamente
 import LoanForm from "./components/LoanForm";
 import LoansTable from "./components/LoansTable";
 
 export default function LoansPage() {
   const [loans, setLoans] = useState([]);
   const [clients, setClients] = useState([]);
+  const [defaultInterest, setDefaultInterest] = useState(20); // Valor por defecto de respaldo
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("TODOS"); // 'TODOS', 'ACTIVO', 'PAGADO', 'ATRASADO'
   const [loading, setLoading] = useState(false);
+  
+  // Estado para controlar la apertura del Modal de Préstamos
+  const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
 
   const loadData = async () => {
     try {
-      const [loansData, clientsData] = await Promise.all([
+      const [loansData, clientsData, settingsData] = await Promise.all([
         getLoans(),
         getClients(),
+        getSettings().catch(() => null), // Evita que falle la app si el servicio de settings no responde
       ]);
+
       if (Array.isArray(loansData)) setLoans(loansData);
       if (Array.isArray(clientsData)) setClients(clientsData);
+
+      // Cruzamos los datos de las configuraciones para buscar la tasa de interés
+      if (settingsData) {
+        const settingsArray = Array.isArray(settingsData) ? settingsData : [settingsData];
+        // Buscamos la clave correspondiente a la tasa de interés en la DB
+        const interestSetting = settingsArray.find(
+          (s) => s.key === "interestRate" || s.key === "tasa_interes" || s.key === "defaultInterestRate"
+        );
+        if (interestSetting && interestSetting.value !== undefined) {
+          setDefaultInterest(Number(interestSetting.value));
+        }
+      }
     } catch (error) {
-      console.error("Error al cargar datos de préstamos:", error);
+      console.error("Error al cargar datos de préstamos, clientes o configuraciones:", error);
     }
   };
 
@@ -84,7 +103,7 @@ export default function LoansPage() {
   return (
     <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Cabecera */}
+        {/* Cabecera con Botón de Nuevo Préstamo */}
         <div className="border-b border-neutral-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
@@ -92,13 +111,26 @@ export default function LoansPage() {
               Gestión de Préstamos & Cartera Crediticia
             </h2>
             <p className="text-sm text-neutral-400 mt-1">
-              Control de emisiones, plazos, tasas de interés y seguimiento de
-              cobros.
+              Control de emisiones, plazos, tasas de interés y seguimiento de cobros.
             </p>
           </div>
-          <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-xs text-neutral-400 flex items-center gap-2">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-            Módulo Activo
+          
+          <div className="flex items-center gap-3">
+            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-xs text-neutral-400 hidden sm:flex items-center gap-2">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+              Módulo Activo
+            </div>
+            
+            {/* Botón que abre el Modal */}
+            <button
+              onClick={() => setIsLoanModalOpen(true)}
+              className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              Otorgar Préstamo
+            </button>
           </div>
         </div>
 
@@ -130,7 +162,7 @@ export default function LoansPage() {
             </span>
           </div>
 
-          {/* Cartera Total a Cobrar (Con intereses estimados) */}
+          {/* Cartera Total a Cobrar */}
           <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-neutral-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Cartera Total Proyectada
@@ -144,14 +176,15 @@ export default function LoansPage() {
           </div>
         </div>
 
-        {/* Contenedor del Formulario de Préstamo */}
-        <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
-          <LoanForm
-            clients={clients}
-            onLoanCreated={handleCreateLoan}
-            loading={loading}
-          />
-        </div>
+        {/* Modal del Formulario de Préstamo con la tasa traída de la DB */}
+        <LoanForm
+          isOpen={isLoanModalOpen}
+          onClose={() => setIsLoanModalOpen(false)}
+          clients={clients}
+          onLoanCreated={handleCreateLoan}
+          defaultInterestRate={defaultInterest}
+          loading={loading}
+        />
 
         {/* Contenedor de la Tabla con Buscador y Filtros */}
         <div className="space-y-4">

@@ -4,7 +4,7 @@ import BudgetReceipt from "../../components/Receipts/BudgetReceipt";
 import LoanDisbursementReceipt from "../../components/Receipts/LoanDisbursementReceipt";
 import PaymentReceipt from "../../components/Receipts/PaymentReceipt";
 
-// Componentes modularizados
+// 1. Asegúrate de importar los componentes hijos correctamente
 import SettingsNav from "./components/SettingsNav";
 import GeneralSettingsTab from "./components/GeneralSettingsTab";
 import ReceiptSettingsTab from "./components/ReceiptSettingsTab";
@@ -12,27 +12,26 @@ import BackupSettingsTab from "./components/BackupSettingsTab";
 import AboutSettingsTab from "./components/AboutSettingsTab";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("general"); // 'general' | 'receipts' | 'backup' | 'about'
+  const [activeTab, setActiveTab] = useState("general"); 
   const [form, setForm] = useState({
     companyName: "Cash Flow Express",
     currency: "$",
+    maxInstallments: "12",
     defaultInterestRate: "20",
-    maxLoanTermDays: "30",
     lateFeePercentage: "2",
     contactEmail: "",
     contactPhone: "",
     dateFormat: "DD/MM/YYYY",
     receiptHeaderTitle: "COMPROBANTE DE OPERACIÓN",
     receiptCompanyId: "",
-    receiptFooterNote:
-      "Gracias por confiar en nosotros. Conserve este comprobante.",
+    receiptFooterNote: "Gracias por confiar en nosotros. Conserve este comprobante.",
     receiptStyle: "MODERN",
     receiptShowLogo: "true",
   });
 
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [previewType, setPreviewType] = useState(null); // 'budget' | 'loan' | 'payment' | null
+  const [previewType, setPreviewType] = useState(null);
 
   useEffect(() => {
     getSettings()
@@ -77,6 +76,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans relative">
       <div className="max-w-4xl mx-auto space-y-8">
+        
         {/* Cabecera */}
         <div className="border-b border-neutral-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -85,8 +85,7 @@ export default function SettingsPage() {
               Configuración General del Sistema
             </h2>
             <p className="text-sm text-neutral-400 mt-1">
-              Parámetros globales del negocio, políticas de riesgo y plantillas
-              de recibos.
+              Parámetros globales del negocio, políticas de riesgo y plantillas de recibos.
             </p>
           </div>
           <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-xs text-neutral-400 flex items-center gap-2">
@@ -95,17 +94,16 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Notificación de guardado */}
         {saved && (
           <div className="bg-emerald-950/60 border border-emerald-900/50 text-emerald-400 px-4 py-3 rounded-2xl text-sm flex items-center gap-2 shadow-xl backdrop-blur-sm">
-            ¡Configuración y plantillas de recibos guardadas exitosamente!
+            ¡Configuración guardada exitosamente!
           </div>
         )}
 
-        {/* Tarjetas de Navegación SPA */}
+        {/* Navegación de pestañas */}
         <SettingsNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Contenido Dinámico según la Pestaña Activa */}
+        {/* 2. AQUÍ ES DONDE SE RENDERIZA EL DISEÑO NUEVO */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {activeTab === "general" && (
             <GeneralSettingsTab form={form} handleChange={handleChange} />
@@ -120,10 +118,8 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "backup" && <BackupSettingsTab />}
-
           {activeTab === "about" && <AboutSettingsTab />}
 
-          {/* Botón de Guardado Global (visible solo en pestañas editables) */}
           {(activeTab === "general" || activeTab === "receipts") && (
             <div className="flex justify-end pt-2">
               <button
@@ -131,16 +127,14 @@ export default function SettingsPage() {
                 disabled={loading}
                 className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8 py-3 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer disabled:opacity-50"
               >
-                {loading
-                  ? "Guardando Cambios..."
-                  : "Guardar Toda la Configuración"}
+                {loading ? "Guardando Cambios..." : "Guardar Toda la Configuración"}
               </button>
             </div>
           )}
         </form>
       </div>
 
-      {/* MODAL DE PREVISUALIZACIÓN DE RECIBOS */}
+      {/* MODAL PREVISUALIZACIÓN */}
       {previewType && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="relative w-full max-w-lg space-y-4">
@@ -156,12 +150,9 @@ export default function SettingsPage() {
                 ✕ Cerrar
               </button>
             </div>
-
             <div className="max-h-[80vh] overflow-y-auto">
               {previewType === "budget" && <BudgetReceipt settings={form} />}
-              {previewType === "loan" && (
-                <LoanDisbursementReceipt settings={form} />
-              )}
+              {previewType === "loan" && <LoanDisbursementReceipt settings={form} />}
               {previewType === "payment" && <PaymentReceipt settings={form} />}
             </div>
           </div>
