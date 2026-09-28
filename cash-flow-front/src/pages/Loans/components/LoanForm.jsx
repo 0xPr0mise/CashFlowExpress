@@ -17,18 +17,28 @@ export default function LoanForm({
     dueDate: "",
   });
 
-  // Estado para controlar el modal de previsualización (presupuesto)
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [calculatedDetails, setCalculatedDetails] = useState(null);
 
+  const todayFormatted = new Date().toISOString().split('T')[0];
+
+  // Función auxiliar para formatear fechas de AAAA-MM-DD a DD/MM/AAAA
+  const formatDateToLocal = (dateString) => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    if (!year || !month || !day) return dateString;
+    return `${day}/${month}/${year}`;
+  };
+
   useEffect(() => {
     if (defaultInterestRate !== undefined) {
-      setForm((prev) => ({ ...prev, interestRate: String(defaultInterestRate) }));
+      setForm((prev) => ({ ...prev, interestRate: String(Math.round(defaultInterestRate)) }));
     }
   }, [defaultInterestRate]);
 
+  // Cálculo automático del primer vencimiento (solo suma 1 intervalo respecto a hoy, independiente de las cuotas)
   useEffect(() => {
-    const installmentsNum = parseInt(form.installments) || 1;
+    const installmentsNum = parseInt(form.installments, 10) || 1;
     
     if (installmentsNum === 1) {
       setForm((prev) => ({ ...prev, frequency: "A_TERMINO" }));
@@ -37,19 +47,65 @@ export default function LoanForm({
         setForm((prev) => ({ ...prev, frequency: "MENSUAL" }));
       }
     }
-  }, [form.installments]);
+
+    const today = new Date();
+    let targetDate = new Date();
+
+    if (form.frequency === "DIARIO") {
+      targetDate.setDate(today.getDate() + 1);
+    } else if (form.frequency === "SEMANAL") {
+      targetDate.setDate(today.getDate() + 7);
+    } else if (form.frequency === "QUINCENAL") {
+      targetDate.setDate(today.getDate() + 15);
+    } else if (form.frequency === "MENSUAL") {
+      targetDate.setMonth(today.getMonth() + 1);
+    } else {
+      // A_TERMINO por defecto (30 días)
+      targetDate.setDate(today.getDate() + 30);
+    }
+
+    setForm(prev => ({ 
+      ...prev, 
+      dueDate: targetDate.toISOString().split('T')[0] 
+    }));
+
+  }, [form.installments, form.frequency]);
 
   if (!isOpen) return null;
 
+  const formatThousands = (value) => {
+    if (!value && value !== 0) return "";
+    const cleanValue = String(value).replace(/\D/g, "");
+    if (!cleanValue) return "";
+    return Number(cleanValue).toLocaleString("es-AR");
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if ((name === "amount" || name === "interestRate" || name === "installments") && value < 0) {
+    
+    if (name === "amount" || name === "interestRate" || name === "installments") {
+      const cleanValue = value.replace(/\D/g, "");
+      if (cleanValue === "" || parseInt(cleanValue, 10) >= 0) {
+        setForm({ ...form, [name]: cleanValue });
+      }
       return;
     }
+
     setForm({ ...form, [name]: value });
   };
 
-  // Paso 1: Validar y calcular los valores antes de mostrar el modal de presupuesto
+  const getDaysBetween = () => {
+    if (!form.dueDate) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(form.dueDate);
+    due.setHours(0, 0, 0, 0);
+    const timeDiff = due.getTime() - today.getTime();
+    return Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+  };
+
+  const currentDaysDiff = getDaysBetween();
+
   const handleOpenPreview = (e) => {
     e.preventDefault();
     if (!form.clientId || !form.amount || !form.dueDate) {
@@ -57,53 +113,82 @@ export default function LoanForm({
       return;
     }
 
-    const amount = parseFloat(form.amount) || 0;
-    const interestRate = parseFloat(form.interestRate) || 0;
-    const installments = parseInt(form.installments) || 1;
+    const amount = parseInt(form.amount, 10) || 0;
+    const baseInterestRate = parseInt(form.interestRate, 10) || parseInt(defaultInterestRate, 10) || 20;
+    const installments = parseInt(form.installments, 10) || 1;
     const frequency = form.frequency;
 
-    // Calcular días calendario si es A_TERMINO (1 cuota)
-    let daysDiff = 0;
-    let totalToPay = 0;
+    let finalInterestRate = baseInterestRate;
     let interestAmount = 0;
+    let totalToPay = 0;
+    const schedule = [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(form.dueDate);
-    due.setHours(0, 0, 0, 0);
-
-    const timeDiff = due.getTime() - today.getTime();
-    daysDiff = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
-
-    if (frequency === "A_TERMINO") {
-      interestAmount = amount * (interestRate / 100); 
+    if (installments === 1 || frequency === "A_TERMINO") {
+      const dailyRate = baseInterestRate / 30;
+      finalInterestRate = Math.round(dailyRate * Math.max(1, currentDaysDiff));
+      interestAmount = Math.round(amount * (finalInterestRate / 100));
       totalToPay = amount + interestAmount;
+
+      schedule.push({
+        installmentNumber: 1,
+        dueDate: form.dueDate,
+        capital: amount,
+        interest: interestAmount,
+        amount: totalToPay
+      });
     } else {
-      interestAmount = amount * (interestRate / 100);
+      interestAmount = Math.round(amount * (baseInterestRate / 100));
       totalToPay = amount + interestAmount;
+      
+      const installmentTotal = Math.round(totalToPay / installments);
+      const installmentCapital = Math.round(amount / installments);
+      const installmentInterest = Math.round(interestAmount / installments);
+
+      const baseDate = new Date(form.dueDate);
+
+      for (let i = 1; i <= installments; i++) {
+        let instDate = new Date(baseDate);
+
+        if (frequency === "SEMANAL") {
+          instDate.setDate(baseDate.getDate() + (7 * (i - 1)));
+        } else if (frequency === "QUINCENAL") {
+          instDate.setDate(baseDate.getDate() + (15 * (i - 1)));
+        } else if (frequency === "MENSUAL") {
+          instDate.setMonth(baseDate.getMonth() + (i - 1));
+        } else if (frequency === "DIARIO") {
+          instDate.setDate(baseDate.getDate() + (i - 1));
+        }
+
+        schedule.push({
+          installmentNumber: i,
+          dueDate: instDate.toISOString().split('T')[0],
+          capital: installmentCapital,
+          interest: installmentInterest,
+          amount: installmentTotal
+        });
+      }
     }
 
     const selectedClient = clients.find((c) => String(c.id) === String(form.clientId));
 
-    // Guardar los datos calculados para pasarlos al presupuesto y a la DB
     setCalculatedDetails({
       client: selectedClient,
       clientId: form.clientId,
       amount,
-      interestRate,
+      interestRate: finalInterestRate,
       installments,
       frequency,
       dueDate: form.dueDate,
-      daysDiff,
+      daysDiff: currentDaysDiff,
       interestAmount,
       totalToPay,
-      installmentAmount: totalToPay / installments,
+      installmentAmount: Math.round(totalToPay / installments),
+      schedule,
     });
 
     setShowPreviewModal(true);
   };
 
-  // Paso 2: Confirmación final y envío a la base de datos
   const handleConfirmLoan = () => {
     if (!calculatedDetails) return;
 
@@ -115,7 +200,8 @@ export default function LoanForm({
       interestRate: calculatedDetails.interestRate,
       dueDate: calculatedDetails.dueDate,
       totalToPay: calculatedDetails.totalToPay,
-      days: calculatedDetails.daysDiff, // Enviamos los días calculados a la DB
+      days: calculatedDetails.daysDiff,
+      schedule: calculatedDetails.schedule,
     });
 
     setForm({
@@ -131,11 +217,10 @@ export default function LoanForm({
     onClose();
   };
 
-  const installmentsNum = parseInt(form.installments) || 1;
+  const installmentsNum = parseInt(form.installments, 10) || 1;
 
   return (
     <>
-      {/* Modal Principal de Formulario */}
       <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
         <div className="relative w-full max-w-3xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
           
@@ -184,49 +269,44 @@ export default function LoanForm({
                   Monto ($) *
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   name="amount"
-                  min="0"
-                  step="any"
-                  placeholder="0.00"
-                  value={form.amount}
+                  placeholder="0"
+                  value={formatThousands(form.amount)}
                   onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Interés (%)
+                  Interés Mensual (%) *
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   name="interestRate"
-                  min="0"
-                  step="any"
                   value={form.interestRate}
                   onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Cuotas
+                  Cuotas *
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   name="installments"
-                  min="1"
                   value={form.installments}
                   onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Frecuencia
+                  Frecuencia *
                 </label>
                 <select
                   name="frequency"
@@ -243,12 +323,18 @@ export default function LoanForm({
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Fecha de Vencimiento *
-                </label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                    {installmentsNum > 1 ? "Fecha 1er Vencimiento *" : "Fecha de Vencimiento *"}
+                  </label>
+                  <span className="text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
+                    Plazo calculado: {currentDaysDiff} días
+                  </span>
+                </div>
                 <input
                   type="date"
                   name="dueDate"
+                  min={todayFormatted}
                   value={form.dueDate}
                   onChange={handleChange}
                   className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors cursor-pointer scheme-dark"
@@ -275,7 +361,6 @@ export default function LoanForm({
         </div>
       </div>
 
-      {/* Modal Secundario: Previsualización y Descarga de Presupuesto */}
       {showPreviewModal && calculatedDetails && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="relative w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
@@ -293,7 +378,6 @@ export default function LoanForm({
               </button>
             </div>
 
-            {/* Resumen dinámico del préstamo */}
             <div className="bg-black/50 border border-neutral-800 rounded-xl p-4 space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-neutral-400">Cliente:</span>
@@ -301,7 +385,7 @@ export default function LoanForm({
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-400">Monto Solicitado:</span>
-                <span className="text-white font-medium">${calculatedDetails.amount.toFixed(2)}</span>
+                <span className="text-white font-medium">${calculatedDetails.amount.toLocaleString("es-AR")}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-400">Plazo / Frecuencia:</span>
@@ -309,30 +393,45 @@ export default function LoanForm({
                   {calculatedDetails.installments} cuota(s) - {calculatedDetails.frequency}
                 </span>
               </div>
-              {calculatedDetails.frequency === "A_TERMINO" && (
-                <div className="flex justify-between text-amber-400 font-medium">
-                  <span>Días Calendario Calculados:</span>
-                  <span>{calculatedDetails.daysDiff} días</span>
-                </div>
-              )}
+              <div className="flex justify-between text-amber-400 font-medium">
+                <span>Días Calendario Calculados (1er Vto.):</span>
+                <span>{calculatedDetails.daysDiff} días</span>
+              </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Tasa de Interés:</span>
+                <span className="text-neutral-400">Tasa de Interés Aplicada:</span>
                 <span className="text-white font-medium">{calculatedDetails.interestRate}%</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-400">Total de Interés:</span>
-                <span className="text-green-400 font-medium">${calculatedDetails.interestAmount.toFixed(2)}</span>
+                <span className="text-green-400 font-medium">${calculatedDetails.interestAmount.toLocaleString("es-AR")}</span>
               </div>
               <div className="border-t border-neutral-800 pt-2 flex justify-between text-base font-bold">
                 <span className="text-white">Total a Pagar:</span>
-                <span className="text-red-500">${calculatedDetails.totalToPay.toFixed(2)}</span>
+                <span className="text-red-500">${calculatedDetails.totalToPay.toLocaleString("es-AR")}</span>
+              </div>
+
+              <div className="pt-2 border-t border-neutral-800">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                  Desglose de Cuotas (Capital + Interés):
+                </span>
+                <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
+                  {calculatedDetails.schedule.map((inst) => (
+                    <div key={inst.installmentNumber} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs bg-neutral-900 px-3 py-2 rounded-lg border border-neutral-800 gap-1">
+                      <span className="text-neutral-300 font-semibold">
+                        {/* Se usa formatDateToLocal para cambiar de AAAA-MM-DD a DD/MM/AAAA */}
+                        Cuota #{inst.installmentNumber} — <span className="text-neutral-400 font-normal">{formatDateToLocal(inst.dueDate)}</span>
+                      </span>
+                      <div className="flex items-center gap-3 text-right">
+                        <span className="text-neutral-400">Cap: ${inst.capital.toLocaleString("es-AR")} + Int: ${inst.interest.toLocaleString("es-AR")}</span>
+                        <span className="text-amber-400 font-bold">${inst.amount.toLocaleString("es-AR")}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Acciones finales ajustadas y ordenadas */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-neutral-800">
-              
-              {/* Botón secundario a la izquierda (Editar) */}
               <button
                 type="button"
                 onClick={() => setShowPreviewModal(false)}
@@ -341,7 +440,6 @@ export default function LoanForm({
                 ← Editar Datos
               </button>
 
-              {/* Grupo de acciones principales a la derecha (Descargar Ticket y Confirmar) */}
               <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
                 <div className="w-full sm:w-auto">
                   <BudgetReceipt loanData={calculatedDetails} />
@@ -354,8 +452,8 @@ export default function LoanForm({
                   Confirmar y Otorgar
                 </button>
               </div>
-
             </div>
+
           </div>
         </div>
       )}
