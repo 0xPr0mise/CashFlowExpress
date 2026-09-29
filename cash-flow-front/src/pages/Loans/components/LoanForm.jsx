@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import Swal from "sweetalert2"; // <--- Importamos SweetAlert2
 import BudgetReceipt from "../../../components/Receipts/BudgetReceipt";
+import LoanDisbursementReceipt from "../../../components/Receipts/LoanDisbursementReceipt";
 
 export default function LoanForm({ 
   isOpen, 
@@ -19,10 +21,10 @@ export default function LoanForm({
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [calculatedDetails, setCalculatedDetails] = useState(null);
+  const [successLoanData, setSuccessLoanData] = useState(null);
 
   const todayFormatted = new Date().toISOString().split('T')[0];
 
-  // Función auxiliar para formatear fechas de AAAA-MM-DD a DD/MM/AAAA
   const formatDateToLocal = (dateString) => {
     if (!dateString) return "";
     const [year, month, day] = dateString.split("-");
@@ -36,7 +38,6 @@ export default function LoanForm({
     }
   }, [defaultInterestRate]);
 
-  // Cálculo automático del primer vencimiento (solo suma 1 intervalo respecto a hoy, independiente de las cuotas)
   useEffect(() => {
     const installmentsNum = parseInt(form.installments, 10) || 1;
     
@@ -60,7 +61,6 @@ export default function LoanForm({
     } else if (form.frequency === "MENSUAL") {
       targetDate.setMonth(today.getMonth() + 1);
     } else {
-      // A_TERMINO por defecto (30 días)
       targetDate.setDate(today.getDate() + 30);
     }
 
@@ -109,7 +109,14 @@ export default function LoanForm({
   const handleOpenPreview = (e) => {
     e.preventDefault();
     if (!form.clientId || !form.amount || !form.dueDate) {
-      alert("Selecciona un cliente, define el monto y la fecha de vencimiento.");
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Selecciona un cliente, define el monto y la fecha de vencimiento.",
+        background: "#171717",
+        color: "#ffffff",
+        confirmButtonColor: "#dc2626",
+      });
       return;
     }
 
@@ -189,8 +196,27 @@ export default function LoanForm({
     setShowPreviewModal(true);
   };
 
-  const handleConfirmLoan = () => {
+  const handleConfirmLoan = async () => {
     if (!calculatedDetails) return;
+
+    // Reemplazamos window.confirm por SweetAlert2
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Se va a otorgar y registrar este préstamo en el sistema.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Sí, otorgar",
+      cancelButtonText: "Cancelar",
+      background: "#171717", // Neutral-900 para combinar con tu UI
+      color: "#ffffff",
+      confirmButtonColor: "#dc2626", // Rojo estilo Tailwind (red-600)
+      cancelButtonColor: "#404040",   // Neutral-700
+      customClass: {
+        popup: "border border-neutral-800 rounded-2xl shadow-2xl"
+      }
+    });
+
+    if (!result.isConfirmed) return;
 
     onLoanCreated({
       clientId: calculatedDetails.clientId,
@@ -204,6 +230,8 @@ export default function LoanForm({
       schedule: calculatedDetails.schedule,
     });
 
+    setSuccessLoanData(calculatedDetails);
+    
     setForm({
       clientId: "",
       amount: "",
@@ -214,6 +242,10 @@ export default function LoanForm({
     });
     
     setShowPreviewModal(false);
+  };
+
+  const handleCloseSuccessModal = () => {
+    setSuccessLoanData(null);
     onClose();
   };
 
@@ -221,6 +253,7 @@ export default function LoanForm({
 
   return (
     <>
+      {/* MODAL 1: Formulario principal */}
       <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
         <div className="relative w-full max-w-3xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
           
@@ -361,6 +394,7 @@ export default function LoanForm({
         </div>
       </div>
 
+      {/* MODAL 2: Previsualización */}
       {showPreviewModal && calculatedDetails && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="relative w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
@@ -418,7 +452,6 @@ export default function LoanForm({
                   {calculatedDetails.schedule.map((inst) => (
                     <div key={inst.installmentNumber} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs bg-neutral-900 px-3 py-2 rounded-lg border border-neutral-800 gap-1">
                       <span className="text-neutral-300 font-semibold">
-                        {/* Se usa formatDateToLocal para cambiar de AAAA-MM-DD a DD/MM/AAAA */}
                         Cuota #{inst.installmentNumber} — <span className="text-neutral-400 font-normal">{formatDateToLocal(inst.dueDate)}</span>
                       </span>
                       <div className="flex items-center gap-3 text-right">
@@ -452,6 +485,55 @@ export default function LoanForm({
                   Confirmar y Otorgar
                 </button>
               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Éxito y Comprobante de Desembolso */}
+      {successLoanData && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="relative w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl text-center space-y-5">
+            
+            <div className="w-16 h-16 bg-emerald-950/80 border border-emerald-600/50 rounded-full flex items-center justify-center mx-auto text-emerald-400 text-3xl shadow-lg shadow-emerald-950">
+              ✓
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-white">¡Préstamo Asignado con Éxito!</h3>
+              <p className="text-xs text-neutral-400">
+                El préstamo se ha registrado correctamente en el sistema y el movimiento de caja fue generado.
+              </p>
+            </div>
+
+            <div className="bg-black/40 border border-neutral-800 rounded-xl p-3.5 text-left text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Cliente:</span>
+                <span className="text-white font-semibold">{successLoanData.client?.name || "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Monto Entregado:</span>
+                <span className="text-emerald-400 font-bold">${successLoanData.amount.toLocaleString("es-AR")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Total a Devolver:</span>
+                <span className="text-white font-bold">${successLoanData.totalToPay.toLocaleString("es-AR")}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <div className="w-full">
+                <LoanDisbursementReceipt loanData={successLoanData} />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseSuccessModal}
+                className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors cursor-pointer"
+              >
+                Cerrar y Finalizar
+              </button>
             </div>
 
           </div>
