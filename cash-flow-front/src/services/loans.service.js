@@ -31,7 +31,8 @@ export async function deleteLoan(id) {
 }
 
 export async function payLoan(loanId, paymentData) {
-  const res = await fetch(`http://localhost:3000/loans/${loanId}/pay`, {
+  // paymentData ahora puede incluir: { amount, paymentMethod, note, targetInstallmentNumber }
+  const res = await fetch(`${API_URL}/loans/${loanId}/pay`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(paymentData),

@@ -1,6 +1,10 @@
-import { payLoan } from "../../../services/loans.service"; // Ajusta la ruta si es necesario
+import { useState } from "react";
+import PaymentModal from "../../../components/loans/PaymentModal";
 
 export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
+  // Estado para controlar qué préstamo se está cobrando mediante el modal
+  const [selectedLoanForPayment, setSelectedLoanForPayment] = useState(null);
+
   // Función auxiliar para formatear montos en pesos (estilo argentino)
   const formatMoney = (value) => {
     if (value === undefined || value === null || isNaN(value)) return "$0";
@@ -50,35 +54,6 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
     return "N/A";
   };
 
-  // Función para manejar el evento de pago directo
-  const handlePayClick = async (loan) => {
-    const amountStr = prompt(
-      `Ingrese el monto a abonar para el préstamo de ${loan.client?.name || "Cliente"}:`,
-      "0",
-    );
-    if (!amountStr) return;
-
-    const amount = parseFloat(amountStr);
-    if (isNaN(amount) || amount <= 0) {
-      alert("Por favor, ingrese un monto válido.");
-      return;
-    }
-
-    try {
-      await payLoan(loan.id, { amount, paymentMethod: "EFECTIVO" });
-      alert("¡Pago registrado con éxito!");
-
-      if (onLoanUpdated) {
-        onLoanUpdated();
-      } else {
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Error al registrar el pago en el servidor.");
-    }
-  };
-
   return (
     <div>
       <div className="overflow-x-auto">
@@ -107,7 +82,6 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
                 const totalToPay = loan.totalToPay || 0;
 
                 // --- CÁLCULO DINÁMICO DE LO PAGADO Y PENDIENTE ---
-                // Sumamos todos los pagos que vienen en la relación loan.payments del backend
                 const totalPaidSoFar = Array.isArray(loan.payments)
                   ? loan.payments.reduce((acc, p) => acc + (p.amount || 0), 0)
                   : (loan.paidAmount || 0);
@@ -159,7 +133,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
                       <div className="flex gap-2 justify-center">
                         {loan.status !== "PAGADO" && (
                           <button
-                            onClick={() => handlePayClick(loan)}
+                            onClick={() => setSelectedLoanForPayment(loan)} // <--- Abre el modal de pago
                             className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
                           >
                             Pagar 💵
@@ -181,6 +155,22 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
           </tbody>
         </table>
       </div>
+
+      {/* --- RENDERIZADO DEL MODAL DE PAGO --- */}
+      {selectedLoanForPayment && (
+        <PaymentModal
+          loan={selectedLoanForPayment}
+          onClose={() => setSelectedLoanForPayment(null)}
+          onPaymentSuccess={() => {
+            setSelectedLoanForPayment(null);
+            if (onLoanUpdated) {
+              onLoanUpdated();
+            } else {
+              window.location.reload();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
