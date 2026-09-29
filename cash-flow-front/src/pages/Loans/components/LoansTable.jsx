@@ -3,7 +3,7 @@ import { payLoan } from "../../../services/loans.service"; // Ajusta la ruta si 
 export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
   // Función auxiliar para formatear montos en pesos (estilo argentino)
   const formatMoney = (value) => {
-    if (value === undefined || value === null) return "$0";
+    if (value === undefined || value === null || isNaN(value)) return "$0";
     return Number(value).toLocaleString("es-AR", {
       style: "currency",
       currency: "ARS",
@@ -22,21 +22,27 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
 
   // Función para obtener la fecha de la próxima cuota pendiente
   const getNextDueDate = (loan) => {
-    // Si el préstamo ya está pagado
     if (loan.status === "PAGADO") return "Completado";
 
-    // Si el backend te devuelve un array de cuotas/cronograma (ej. loan.schedule o loan.installmentsList)
-    const schedule = loan.schedule || loan.installmentsList;
+    // Manejamos por si el schedule viene como string JSON o ya como array
+    let schedule = loan.schedule;
+    if (typeof schedule === "string") {
+      try {
+        schedule = JSON.parse(schedule);
+      } catch (e) {
+        schedule = [];
+      }
+    }
 
-    if (Array.isArray(schedule) && schedule.length > 0) {
-      // Buscamos la primera cuota que no esté pagada (puedes ajustar la condición según tu backend, ej: status !== 'PAGADO')
-      const nextInstallment = schedule.find((inst) => inst.status !== "PAGADO") || schedule[0];
+    const installmentsList = schedule || loan.installmentsList;
+
+    if (Array.isArray(installmentsList) && installmentsList.length > 0) {
+      const nextInstallment = installmentsList.find((inst) => inst.status !== "PAGADO") || installmentsList[0];
       if (nextInstallment && nextInstallment.dueDate) {
         return formatDateToLocal(nextInstallment.dueDate);
       }
     }
 
-    // Fallback: si viene una fecha general de vencimiento en el préstamo
     if (loan.dueDate) {
       return formatDateToLocal(loan.dueDate);
     }
@@ -98,10 +104,17 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
               </tr>
             ) : (
               loans.map((loan) => {
-                // Si el backend te manda el saldo pendiente, lo usamos. Si no, simulamos un cálculo base o tomamos loan.pendingAmount
                 const totalToPay = loan.totalToPay || 0;
-                const paidAmount = loan.paidAmount || 0; 
-                const pendingAmount = loan.pendingAmount !== undefined ? loan.pendingAmount : Math.max(0, totalToPay - paidAmount);
+
+                // --- CÁLCULO DINÁMICO DE LO PAGADO Y PENDIENTE ---
+                // Sumamos todos los pagos que vienen en la relación loan.payments del backend
+                const totalPaidSoFar = Array.isArray(loan.payments)
+                  ? loan.payments.reduce((acc, p) => acc + (p.amount || 0), 0)
+                  : (loan.paidAmount || 0);
+
+                const pendingAmount = loan.status === "PAGADO" 
+                  ? 0 
+                  : Math.max(0, totalToPay - totalPaidSoFar);
 
                 return (
                   <tr
@@ -114,12 +127,12 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
                     <td className="p-4 text-neutral-400">{loan.installments}</td>
                     <td className="p-4 text-neutral-400">{loan.frequency}</td>
                     
-                    {/* Total a Pagar único */}
+                    {/* Total a Pagar */}
                     <td className="p-4 font-semibold text-emerald-400">
                       {formatMoney(totalToPay)}
                     </td>
 
-                    {/* Valor pendiente */}
+                    {/* Valor pendiente calculado en tiempo real */}
                     <td className="p-4 font-semibold text-amber-400">
                       {formatMoney(pendingAmount)}
                     </td>
