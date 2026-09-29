@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export default function ClientTable({
   filteredClients,
   searchTerm,
@@ -5,6 +7,13 @@ export default function ClientTable({
   handleDelete,
   handleOpenLoansModal,
 }) {
+  // Función auxiliar estética para formatear montos en enteros con separadores de millares
+  const formatMoney = (amount) => {
+    const numericValue = Number(amount) || 0;
+    const rounded = Math.round(numericValue);
+    return rounded.toLocaleString("es-AR");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -57,71 +66,90 @@ export default function ClientTable({
                   </td>
                 </tr>
               ) : (
-                filteredClients.map((client) => (
-                  <tr
-                    key={client.id}
-                    className="hover:bg-neutral-800/30 transition-colors"
-                  >
-                    <td className="p-4 font-bold text-white">{client.name}</td>
-                    <td className="p-4 text-neutral-300">{client.phone}</td>
-                    <td className="p-4 text-neutral-400">
-                      {client.dni || "-"}
-                    </td>
-                    <td className="p-4 text-neutral-400 text-xs">
-                      <div>{client.address || "-"}</div>
-                      {client.reference && (
-                        <span className="text-neutral-500 italic">
-                          Ref: {client.reference}
-                        </span>
-                      )}
-                    </td>
+                filteredClients.map((client) => {
+                  // --- CÁLCULO SEGURO EN EL FRONTEND ---
+                  const clientLoans = client.loans || [];
+                  const calculatedPending = clientLoans.reduce((sum, loan) => {
+                    const status = loan.status ? String(loan.status).toUpperCase() : 'ACTIVO';
+                    if (status === 'PAGADO') return sum;
 
-                    {/* Columna: Cliente que lo refirió */}
-                    <td className="p-4 text-neutral-300 text-xs">
-                      {client.referredBy ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-800 text-neutral-200 border border-neutral-700">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                          {client.referredBy.name}
-                        </span>
-                      ) : (
-                        <span className="text-neutral-500">-</span>
-                      )}
-                    </td>
+                    const totalToPay = Number(loan.totalToPay || loan.amount || 0);
+                    
+                    // Buscamos el monto contemplando diferentes posibles nombres de propiedades en los pagos
+                    const totalPaid = Array.isArray(loan.payments)
+                      ? loan.payments.reduce((acc, p) => acc + Number(p.amount ?? p.monto ?? p.valor ?? 0), 0)
+                      : Number(loan.paidAmount || 0);
 
-                    {/* Columna: Total Pendiente de pago */}
-                    <td className="p-4 font-black text-amber-400 tracking-tight">
-                      $
-                      {client.totalPending !== undefined &&
-                      client.totalPending !== null
-                        ? Number(client.totalPending).toFixed(2)
-                        : "0.00"}
-                    </td>
+                    const net = totalToPay - totalPaid;
+                    return sum + (net > 0 ? net : 0);
+                  }, 0);
 
-                    {/* Acciones */}
-                    <td className="p-4 text-center space-x-2">
-                      <button
-                        onClick={() => {
-                          if (handleOpenLoansModal) {
-                            handleOpenLoansModal(client);
-                          } else {
-                            alert("La función del modal no está conectada.");
-                          }
-                        }}
-                        className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                        title="Ver préstamos activos"
-                      >
-                        Ver Préstamos
-                      </button>
+                  const finalPending = calculatedPending;
 
-                      <button
-                        onClick={() => handleDelete(client.id)}
-                        className="bg-neutral-800 hover:bg-red-950/60 text-red-400 border border-neutral-700 hover:border-red-900 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                  return (
+                    <tr
+                      key={client.id}
+                      className="hover:bg-neutral-800/30 transition-colors"
+                    >
+                      <td className="p-4 font-bold text-white">{client.name}</td>
+                      <td className="p-4 text-neutral-300">{client.phone}</td>
+                      <td className="p-4 text-neutral-400">
+                        {client.dni || "-"}
+                      </td>
+                      <td className="p-4 text-neutral-400 text-xs">
+                        <div>{client.address || "-"}</div>
+                        {client.reference && (
+                          <span className="text-neutral-500 italic">
+                            Ref: {client.reference}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Columna: Cliente que lo refirió */}
+                      <td className="p-4 text-neutral-300 text-xs">
+                        {client.referredBy ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-800 text-neutral-200 border border-neutral-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                            {client.referredBy.name}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-500">-</span>
+                        )}
+                      </td>
+
+                      {/* Columna: Total Pendiente calculado y formateado */}
+                      <td className="p-4 font-black text-amber-400 tracking-tight">
+                        ${formatMoney(finalPending)}
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="p-4 text-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (handleOpenLoansModal) {
+                              handleOpenLoansModal(client);
+                            } else {
+                              alert("La función del modal no está conectada.");
+                            }
+                          }}
+                          className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                          title="Ver préstamos activos"
+                        >
+                          Ver Préstamos
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(client.id)}
+                          className="bg-neutral-800 hover:bg-red-950/60 text-red-400 border border-neutral-700 hover:border-red-900 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

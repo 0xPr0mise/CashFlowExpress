@@ -7,11 +7,13 @@ export class LoansService {
   constructor(private prisma: PrismaService) {}
 
   async create(createLoanDto: CreateLoanDto) {
-    const { clientId, dueDate, schedule, ...restData } = createLoanDto;
+    const { clientId, dueDate, schedule, amount, ...restData } = createLoanDto;
 
-    return this.prisma.loan.create({
+    // 1. Creamos el préstamo en la base de datos
+    const loan = await this.prisma.loan.create({
       data: {
         ...restData,
+        amount,
         dueDate: dueDate ? new Date(dueDate) : null,
         schedule: schedule ? JSON.stringify(schedule) : null,
         client: {
@@ -23,6 +25,18 @@ export class LoansService {
         payments: true,
       },
     });
+
+    // 2. Registramos automáticamente el EGRESO en la caja por el desembolso del préstamo
+    await this.prisma.cashMovement.create({
+      data: {
+        type: 'EGRESO',
+        category: 'PRESTAMO_OTORGADO',
+        amount: Number(amount),
+        description: `Desembolso de préstamo - ID: ${loan.id}`,
+      },
+    });
+
+    return loan;
   }
 
   findAll() {
@@ -44,7 +58,7 @@ export class LoansService {
     });
   }
 
-  // --- Método para registrar pagos corregido ---
+  // --- Método para registrar pagos ---
   async registerPayment(
     loanId: string,
     amount: number,
@@ -52,17 +66,15 @@ export class LoansService {
     note?: string,
     targetInstallmentNumber?: number,
   ) {
-    // 1. CORRECCIÓN: Traemos explícitamente el campo 'schedule' de la base de datos
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
-      include: { payments: true },
+      include: { payments: true, client: true },
     });
 
     if (!loan) {
       throw new NotFoundException('Préstamo no encontrado');
     }
 
-    // 2. Parsear el schedule correctamente
     let schedule = [];
     try {
       schedule = loan.schedule ? JSON.parse(loan.schedule) : [];
@@ -72,7 +84,7 @@ export class LoansService {
 
     let remainingMoneyToApply = amount;
 
-    // 3. Aplicar a la cuota específica elegida
+    // Aplicar a la cuota específica elegida
     if (targetInstallmentNumber) {
       const targetInst = schedule.find(
         (i) => i.installmentNumber === targetInstallmentNumber,
@@ -94,7 +106,7 @@ export class LoansService {
       }
     }
 
-    // 4. Aplicar en cascada si sobra dinero
+    // Aplicar en cascada si sobra dinero
     if (remainingMoneyToApply > 0) {
       for (let installment of schedule) {
         if (remainingMoneyToApply <= 0) break;
@@ -134,7 +146,6 @@ export class LoansService {
       },
     });
 
-    // 5. Guardar el schedule actualizado como texto JSON en la base de datos
     await this.prisma.loan.update({
       where: { id: loanId },
       data: {
@@ -143,16 +154,16 @@ export class LoansService {
       },
     });
 
+    // Registramos el INGRESO en caja usando la categoría exacta 'COBRO_CUOTA'
     await this.prisma.cashMovement.create({
       data: {
         type: 'INGRESO',
-        category: 'COBRO_PRESTAMO',
+        category: 'COBRO_CUOTA',
         amount: amount,
-        description: `Cobro de préstamo - ID: ${loanId}`,
+        description: `Cobro cuota de préstamo - Cliente: ${loan.client?.name || loanId}`,
       },
     });
 
-    // 6. Opcional: devolvemos también el préstamo actualizado por si el frontend lo necesita directo
     const updatedLoan = await this.prisma.loan.findUnique({
       where: { id: loanId },
       include: { client: true, payments: true },
