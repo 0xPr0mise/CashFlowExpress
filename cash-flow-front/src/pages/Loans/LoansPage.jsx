@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
 import { getLoans, createLoan, deleteLoan } from "../../services/loans.service";
 import { getClients } from "../../services/client.service";
-import { getSettings } from "../../services/settings.service"; // <- Importado correctamente
+import { getSettings } from "../../services/settings.service";
 import LoanForm from "./components/LoanForm";
 import LoansTable from "./components/LoansTable";
 
 export default function LoansPage() {
   const [loans, setLoans] = useState([]);
   const [clients, setClients] = useState([]);
-  const [defaultInterest, setDefaultInterest] = useState(20); // Valor por defecto de respaldo
+  const [defaultInterest, setDefaultInterest] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("TODOS"); // 'TODOS', 'ACTIVO', 'PAGADO', 'ATRASADO'
+  const [filterStatus, setFilterStatus] = useState("TODOS");
   const [loading, setLoading] = useState(false);
   
-  // Estado para controlar la apertura del Modal de Préstamos
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
 
   const loadData = async () => {
@@ -21,16 +20,25 @@ export default function LoansPage() {
       const [loansData, clientsData, settingsData] = await Promise.all([
         getLoans(),
         getClients(),
-        getSettings().catch(() => null), // Evita que falle la app si el servicio de settings no responde
+        getSettings().catch(() => null),
       ]);
 
-      if (Array.isArray(loansData)) setLoans(loansData);
+      if (Array.isArray(loansData)) {
+        // Normalizamos los datos por si el backend usa snake_case o camelCase
+        const normalizedLoans = loansData.map((loan) => ({
+          ...loan,
+          dueDate: loan.dueDate || loan.due_date,
+          totalToPay: loan.totalToPay || loan.total_to_pay || loan.amount,
+          pendingAmount: loan.pendingAmount !== undefined ? loan.pendingAmount : (loan.pending_amount !== undefined ? loan.pending_amount : 0),
+          schedule: loan.schedule || loan.installmentsList || loan.installments_list || [],
+        }));
+        setLoans(normalizedLoans);
+      }
+
       if (Array.isArray(clientsData)) setClients(clientsData);
 
-      // Cruzamos los datos de las configuraciones para buscar la tasa de interés
       if (settingsData) {
         const settingsArray = Array.isArray(settingsData) ? settingsData : [settingsData];
-        // Buscamos la clave correspondiente a la tasa de interés en la DB
         const interestSetting = settingsArray.find(
           (s) => s.key === "interestRate" || s.key === "tasa_interes" || s.key === "defaultInterestRate"
         );
@@ -72,7 +80,6 @@ export default function LoansPage() {
     }
   };
 
-  // Cálculos de métricas (KPIs)
   const totalLoanedAmount = loans.reduce(
     (acc, curr) => acc + (curr.amount || 0),
     0,
@@ -87,7 +94,6 @@ export default function LoansPage() {
     0,
   );
 
-  // Filtrado de préstamos por estado y buscador
   const filteredLoans = loans.filter((loan) => {
     const matchesStatus =
       filterStatus === "TODOS" || loan.status === filterStatus;
@@ -103,7 +109,7 @@ export default function LoansPage() {
   return (
     <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Cabecera con Botón de Nuevo Préstamo */}
+        
         <div className="border-b border-neutral-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
@@ -121,7 +127,6 @@ export default function LoansPage() {
               Módulo Activo
             </div>
             
-            {/* Botón que abre el Modal */}
             <button
               onClick={() => setIsLoanModalOpen(true)}
               className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer flex items-center gap-2"
@@ -134,9 +139,7 @@ export default function LoansPage() {
           </div>
         </div>
 
-        {/* Tarjetas de Métricas (KPIs de Crédito) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {/* Monto Total Colocado */}
           <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-red-600 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Capital Colocado Total
@@ -149,7 +152,6 @@ export default function LoansPage() {
             </span>
           </div>
 
-          {/* Préstamos Activos */}
           <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-emerald-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Créditos Activos / Vigentes
@@ -162,7 +164,6 @@ export default function LoansPage() {
             </span>
           </div>
 
-          {/* Cartera Total a Cobrar */}
           <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-neutral-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Cartera Total Proyectada
@@ -176,7 +177,6 @@ export default function LoansPage() {
           </div>
         </div>
 
-        {/* Modal del Formulario de Préstamo con la tasa traída de la DB */}
         <LoanForm
           isOpen={isLoanModalOpen}
           onClose={() => setIsLoanModalOpen(false)}
@@ -186,7 +186,6 @@ export default function LoansPage() {
           loading={loading}
         />
 
-        {/* Contenedor de la Tabla con Buscador y Filtros */}
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h3 className="text-lg font-bold text-white">
@@ -194,7 +193,6 @@ export default function LoansPage() {
             </h3>
 
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              {/* Buscador Rápido */}
               <div className="w-full sm:w-64">
                 <input
                   type="text"
@@ -205,7 +203,6 @@ export default function LoansPage() {
                 />
               </div>
 
-              {/* Filtros de Estado */}
               <div className="flex items-center gap-1 bg-neutral-900/80 p-1 border border-neutral-800 rounded-xl w-full sm:w-auto overflow-x-auto">
                 <button
                   onClick={() => setFilterStatus("TODOS")}

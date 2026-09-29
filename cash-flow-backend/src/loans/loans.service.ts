@@ -6,10 +6,23 @@ import { PrismaService } from '../prisma/prisma.service';
 export class LoansService {
   constructor(private prisma: PrismaService) {}
 
-  create(createLoanDto: CreateLoanDto) {
+  async create(createLoanDto: CreateLoanDto) {
+    const { clientId, dueDate, schedule, ...restData } = createLoanDto;
+
     return this.prisma.loan.create({
-      data: createLoanDto,
-      include: { client: true },
+      data: {
+        ...restData,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        // Convertimos el arreglo/objeto del cronograma a un String JSON
+        schedule: schedule ? JSON.stringify(schedule) : null,
+        client: {
+          connect: { id: clientId },
+        },
+      },
+      include: { 
+        client: true,
+        payments: true,
+      },
     });
   }
 
@@ -32,14 +45,13 @@ export class LoansService {
     });
   }
 
-  // --- NUEVO: Método para registrar pagos y actualizar saldos/caja ---
+  // --- Método para registrar pagos ---
   async registerPayment(
     loanId: string,
     amount: number,
     paymentMethod = 'EFECTIVO',
     note?: string,
   ) {
-    // 1. Buscar el préstamo existente con sus pagos actuales
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
       include: { payments: true },
@@ -49,15 +61,11 @@ export class LoansService {
       throw new NotFoundException('Préstamo no encontrado');
     }
 
-    // 2. Calcular el total pagado hasta el momento y el saldo restante
     const totalPaidSoFar = loan.payments.reduce((acc, p) => acc + p.amount, 0);
     const newTotalPaid = totalPaidSoFar + amount;
     const remainingBalance = Math.max(0, loan.totalToPay - newTotalPaid);
-
-    // Determinar si el pago cubre la totalidad del préstamo
     const isFullyPaid = remainingBalance <= 0;
 
-    // 3. Crear el registro del pago en la base de datos
     const payment = await this.prisma.payment.create({
       data: {
         loanId,
@@ -69,7 +77,6 @@ export class LoansService {
       },
     });
 
-    // 4. Si se completó el saldo, actualizar el estado del préstamo a 'PAGADO'
     if (isFullyPaid) {
       await this.prisma.loan.update({
         where: { id: loanId },
@@ -77,7 +84,6 @@ export class LoansService {
       });
     }
 
-    // 5. Registrar automáticamente el ingreso en la caja (CashMovement)
     await this.prisma.cashMovement.create({
       data: {
         type: 'INGRESO',

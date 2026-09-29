@@ -38,8 +38,12 @@ model Loan {
   totalToPay      Float
   installments    Int
   frequency       String
+  interestRate    Float
   status          String      @default("ACTIVO")
   dueDate         DateTime?
+
+  days            Int?
+  schedule        String?
   
   createdAt       DateTime    @default(now())
   payments        Payment[]
