@@ -1,7 +1,7 @@
 // Función utilitaria para generar y descargar el ticket en formato factura mediante Canvas 2D
 export function downloadBudgetAsImage(loanData, settings) {
   const currency = settings?.currency || "$";
-  const rawCompanyName = settings?.companyName || "Cash Flow Express";
+  const rawCompanyName = settings?.companyName || "Cash Flow Express V.2";
   const companyId = settings?.receiptCompanyId || "";
   const headerTitle = "TICKET / PRESUPUESTO";
   const footerNote = settings?.receiptFooterNote || "Gracias por su preferencia.";

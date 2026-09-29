@@ -14,7 +14,7 @@ function formatDateStr(dateStr) {
 // Función utilitaria para generar y descargar el ticket de desembolso en formato imagen mediante Canvas 2D
 export function downloadLoanDisbursementAsImage(loanData, settings) {
   const currency = settings?.currency || "$";
-  const rawCompanyName = settings?.companyName || "Cash Flow Express";
+  const rawCompanyName = settings?.companyName || "Cash Flow Express V.2";
   const companyId = settings?.receiptCompanyId || "";
   const headerTitle = "COMPROBANTE DE APROBACIÓN";
   const footerNote = settings?.receiptFooterNote || "Conserve este comprobante como constancia.";
