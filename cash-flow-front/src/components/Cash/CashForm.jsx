@@ -117,6 +117,20 @@ export default function CashForm({ form, setForm, onSubmit, loading }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                      Método de Pago / Canal
+                    </label>
+                    <select
+                      value={form.paymentMethod || "EFECTIVO"}
+                      onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                      className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors cursor-pointer"
+                    >
+                      <option value="EFECTIVO">Efectivo</option>
+                      <option value="TRANSFERENCIA">Transferencia</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                       Monto en Enteros ($)
                     </label>
                     <input
@@ -129,19 +143,19 @@ export default function CashForm({ form, setForm, onSubmit, loading }) {
                       className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 font-semibold"
                     />
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                      Descripción / Referencia
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Detalle opcional..."
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                    Descripción / Referencia
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Detalle opcional..."
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+                  />
                 </div>
 
                 {/* Botones de Acción */}

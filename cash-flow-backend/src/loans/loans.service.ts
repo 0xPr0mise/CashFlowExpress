@@ -7,13 +7,15 @@ export class LoansService {
   constructor(private prisma: PrismaService) {}
 
   async create(createLoanDto: CreateLoanDto) {
-    const { clientId, dueDate, schedule, amount, ...restData } = createLoanDto;
+    // Extraemos paymentMethod del DTO (por defecto EFECTIVO si no viene)
+    const { clientId, dueDate, schedule, amount, paymentMethod = 'EFECTIVO', ...restData } = createLoanDto;
 
     // 1. Creamos el préstamo en la base de datos
     const loan = await this.prisma.loan.create({
       data: {
         ...restData,
         amount,
+        paymentMethod, // <--- Guardamos el método de pago en el préstamo
         dueDate: dueDate ? new Date(dueDate) : null,
         schedule: schedule ? JSON.stringify(schedule) : null,
         client: {
@@ -26,13 +28,15 @@ export class LoansService {
       },
     });
 
-    // 2. Registramos automáticamente el EGRESO en la caja por el desembolso del préstamo
+    // 2. Registramos automáticamente el EGRESO en la caja vinculado al préstamo y su método
     await this.prisma.cashMovement.create({
       data: {
         type: 'EGRESO',
         category: 'PRESTAMO_OTORGADO',
         amount: Number(amount),
-        description: `Desembolso de préstamo - ID: ${loan.id}`,
+        paymentMethod: paymentMethod, // <--- Método de pago real (Efectivo, Transferencia, etc.)
+        loanId: loan.id,              // <--- Vínculo directo al préstamo
+        description: `Desembolso de préstamo - ID: ${loan.id.slice(-6)}`,
       },
     });
 
@@ -154,12 +158,14 @@ export class LoansService {
       },
     });
 
-    // Registramos el INGRESO en caja usando la categoría exacta 'COBRO_CUOTA'
+    // Registramos el INGRESO en caja con su método de pago y vínculo al préstamo
     await this.prisma.cashMovement.create({
       data: {
         type: 'INGRESO',
         category: 'COBRO_CUOTA',
         amount: amount,
+        paymentMethod: paymentMethod, // <--- Método de pago real del cobro
+        loanId: loanId,               // <--- Vínculo directo al préstamo
         description: `Cobro cuota de préstamo - Cliente: ${loan.client?.name || loanId}`,
       },
     });

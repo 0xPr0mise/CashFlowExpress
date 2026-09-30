@@ -8,5 +8,6 @@ export class CreateLoanDto {
   dueDate: string;      
   totalToPay: number;
   days: number;         
-  schedule?: any;       
+  schedule?: any;
+  paymentMethod?: string;       
 }

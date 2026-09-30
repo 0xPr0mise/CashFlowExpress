@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 
 export default function CashTable({ movements, filter, setFilter }) {
-  // Estados para los filtros temporales y de calendario personalizado
+  // Estados para los filtros temporales, de método de pago y de calendario personalizado
   const [dateFilterType, setDateFilterType] = useState("ALL"); // 'ALL', 'TODAY', 'THIS_WEEK', 'THIS_MONTH', 'CUSTOM'
+  const [methodFilter, setMethodFilter] = useState("TODOS"); // 'TODOS', 'EFECTIVO', 'TRANSFERENCIA', etc.
   const [customRange, setCustomRange] = useState({
     startDate: "",
     endDate: "",
@@ -26,7 +27,7 @@ export default function CashTable({ movements, filter, setFilter }) {
     return labels[category] || category;
   };
 
-  // Filtrado avanzado (Tipo de operación + Fechas)
+  // Filtrado avanzado (Tipo de operación + Método de pago + Fechas)
   const filteredMovements = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0];
 
@@ -34,7 +35,11 @@ export default function CashTable({ movements, filter, setFilter }) {
       // 1. Filtro por tipo (TODOS, INGRESO, EGRESO)
       if (filter !== "TODOS" && mov.type !== filter) return false;
 
-      // 2. Filtros temporales
+      // 2. Filtro por método de pago (EFECTIVO, TRANSFERENCIA, etc.)
+      const movMethod = (mov.paymentMethod || "EFECTIVO").toUpperCase();
+      if (methodFilter !== "TODOS" && movMethod !== methodFilter) return false;
+
+      // 3. Filtros temporales
       const movDateStr = new Date(mov.createdAt).toISOString().split("T")[0];
 
       if (dateFilterType === "TODAY") {
@@ -60,7 +65,7 @@ export default function CashTable({ movements, filter, setFilter }) {
 
       return true;
     });
-  }, [movements, filter, dateFilterType, customRange]);
+  }, [movements, filter, methodFilter, dateFilterType, customRange]);
 
   // Datos paginados
   const totalPages = Math.ceil(filteredMovements.length / itemsPerPage) || 1;
@@ -69,12 +74,13 @@ export default function CashTable({ movements, filter, setFilter }) {
     return filteredMovements.slice(start, start + itemsPerPage);
   }, [filteredMovements, currentPage]);
 
-  // Función para exportar los datos filtrados actuales a Excel (.xlsx)
+  // Función para exportar los datos filtrados actuales a Excel (.xlsx) incluyendo el método de pago
   const exportToExcel = () => {
     const dataToExport = filteredMovements.map((mov) => ({
       Fecha: new Date(mov.createdAt).toLocaleString(),
       Tipo: mov.type,
       Categoría: formatCategoryLabel(mov.category),
+      "Método de Pago": mov.paymentMethod || "EFECTIVO",
       Descripción: mov.description || "-",
       Monto: mov.amount,
     }));
@@ -120,6 +126,27 @@ export default function CashTable({ movements, filter, setFilter }) {
           </svg>
           Exportar Planilla (XLSX)
         </button>
+      </div>
+
+      {/* Barra de Filtros por Método de Pago / Canal */}
+      <div className="flex flex-wrap items-center gap-2 bg-neutral-900/40 border border-neutral-800 p-3 rounded-2xl text-xs">
+        <span className="text-neutral-400 font-semibold uppercase tracking-wider mr-2">Canal / Método:</span>
+        {["TODOS", "EFECTIVO", "TRANSFERENCIA"].map((method) => (
+          <button
+            key={method}
+            onClick={() => {
+              setMethodFilter(method);
+              setCurrentPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+              methodFilter === method
+                ? "bg-amber-500 text-black font-bold shadow"
+                : "bg-neutral-800/80 text-neutral-400 hover:text-white hover:bg-neutral-800"
+            }`}
+          >
+            {method === "TODOS" ? "Todos los canales" : method}
+          </button>
+        ))}
       </div>
 
       {/* Barra de Filtros Temporales (Hoy, Esta Semana, Este Mes, Histórico, Calendario) */}
@@ -188,6 +215,7 @@ export default function CashTable({ movements, filter, setFilter }) {
                 <th className="p-4">Fecha y Hora</th>
                 <th className="p-4">Tipo</th>
                 <th className="p-4">Categoría</th>
+                <th className="p-4">Método de Pago</th>
                 <th className="p-4">Descripción</th>
                 <th className="p-4 text-right">Monto</th>
               </tr>
@@ -195,7 +223,7 @@ export default function CashTable({ movements, filter, setFilter }) {
             <tbody className="divide-y divide-neutral-800/60 text-sm">
               {paginatedMovements.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-12 text-neutral-500">
+                  <td colSpan="6" className="text-center py-12 text-neutral-500">
                     No hay movimientos registrados para los filtros seleccionados.
                   </td>
                 </tr>
@@ -219,6 +247,11 @@ export default function CashTable({ movements, filter, setFilter }) {
                     <td className="p-4 font-semibold text-white">
                       {formatCategoryLabel(mov.category)}
                     </td>
+                    <td className="p-4">
+                      <span className="bg-neutral-800 px-2.5 py-1 rounded-md text-neutral-200 font-mono text-xs border border-neutral-700/50">
+                        {mov.paymentMethod || "EFECTIVO"}
+                      </span>
+                    </td>
                     <td className="p-4 text-neutral-400">
                       {mov.description || "-"}
                     </td>
@@ -227,7 +260,7 @@ export default function CashTable({ movements, filter, setFilter }) {
                         mov.type === "INGRESO" ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {mov.type === "INGRESO" ? "+" : "-"}${mov.amount.toFixed(2)}
+                      {mov.type === "INGRESO" ? "+" : "-"}${Number(mov.amount || 0).toFixed(2)}
                     </td>
                   </tr>
                 ))
