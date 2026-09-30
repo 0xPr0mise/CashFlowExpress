@@ -1,7 +1,10 @@
 export default function CashMetrics({ balances = {}, totalMovements = 0 }) {
   const formatMoney = (amount) => {
     const rounded = Math.round(amount || 0);
-    return rounded.toLocaleString("es-AR");
+    return rounded.toLocaleString("es-AR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
   };
 
   const channels = Object.entries(balances);

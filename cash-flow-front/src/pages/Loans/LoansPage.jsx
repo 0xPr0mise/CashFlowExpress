@@ -19,6 +19,15 @@ export default function LoansPage() {
   const [isExpirationsModalOpen, setIsExpirationsModalOpen] = useState(false);
   const [refinanceInitialData, setRefinanceInitialData] = useState(null);
 
+  // Función auxiliar de formateo de dinero (enteros con puntos en millares, sin decimales)
+  const formatMoney = (amount) => {
+    const rounded = Math.round(amount || 0);
+    return rounded.toLocaleString("es-AR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  };
+
   const loadData = async () => {
     try {
       const [loansData, clientsData, settingsData] = await Promise.all([
@@ -103,7 +112,6 @@ export default function LoansPage() {
       setLoading(true);
       const oldLoanId = refinancePayload.oldLoanId;
 
-      // Actualizamos explícitamente en el backend el préstamo viejo a REFINANCIADO y saldo/cuotas a 0
       if (oldLoanId) {
         await updateLoan(oldLoanId, {
           status: "REFINANCIADO",
@@ -112,7 +120,6 @@ export default function LoansPage() {
         });
       }
 
-      // Pre-cargamos el formulario con el monto remanente exacto para el nuevo préstamo
       setRefinanceInitialData({
         clientId: refinancePayload.clientId,
         amount: String(refinancePayload.amount),
@@ -259,7 +266,7 @@ export default function LoansPage() {
               Capital Colocado Total
             </h3>
             <p className="text-3xl font-black text-white tracking-tight">
-              ${totalLoanedAmount.toFixed(2)}
+              ${formatMoney(totalLoanedAmount)}
             </p>
           </div>
 
@@ -277,7 +284,7 @@ export default function LoansPage() {
               Cartera Total Proyectada
             </h3>
             <p className="text-3xl font-black text-neutral-200 tracking-tight">
-              ${totalPortfolioValue.toFixed(2)}
+              ${formatMoney(totalPortfolioValue)}
             </p>
           </div>
         </div>
