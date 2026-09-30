@@ -18,17 +18,16 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
   // Función auxiliar para formatear fechas de AAAA-MM-DD a DD/MM/AAAA
   const formatDateToLocal = (dateString) => {
     if (!dateString) return "N/A";
-    const cleanDate = dateString.split("T")[0]; // Por si viene con hora
+    const cleanDate = dateString.split("T")[0];
     const [year, month, day] = cleanDate.split("-");
     if (!year || !month || !day) return dateString;
     return `${day}/${month}/${year}`;
   };
 
   // Función para obtener la fecha de la próxima cuota pendiente
-  const getNextDueDate = (loan) => {
-    if (loan.status === "PAGADO") return "Completado";
+  const getNextDueDateObject = (loan) => {
+    if (loan.status === "PAGADO") return null;
 
-    // Manejamos por si el schedule viene como string JSON o ya como array
     let schedule = loan.schedule;
     if (typeof schedule === "string") {
       try {
@@ -43,16 +42,33 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
     if (Array.isArray(installmentsList) && installmentsList.length > 0) {
       const nextInstallment = installmentsList.find((inst) => inst.status !== "PAGADO") || installmentsList[0];
       if (nextInstallment && nextInstallment.dueDate) {
-        return formatDateToLocal(nextInstallment.dueDate);
+        return nextInstallment.dueDate.split("T")[0];
       }
     }
 
     if (loan.dueDate) {
-      return formatDateToLocal(loan.dueDate);
+      return loan.dueDate.split("T")[0];
     }
 
-    return "N/A";
+    return null;
   };
+
+  const getNextDueDateFormatted = (loan) => {
+    if (loan.status === "PAGADO") return "Completado";
+    const rawDate = getNextDueDateObject(loan);
+    return rawDate ? formatDateToLocal(rawDate) : "N/A";
+  };
+
+  // Ordenar los préstamos filtrados por el vencimiento más próximo primero
+  const sortedLoans = [...loans].sort((a, b) => {
+    const dateA = getNextDueDateObject(a);
+    const dateB = getNextDueDateObject(b);
+
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+
+    return new Date(dateA) - new Date(dateB);
+  });
 
   return (
     <div>
@@ -71,17 +87,16 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-800/60 text-sm">
-            {loans.length === 0 ? (
+            {sortedLoans.length === 0 ? (
               <tr>
                 <td colSpan="8" className="text-center py-10 text-neutral-500">
-                  No hay préstamos cargados.
+                  No hay préstamos para mostrar con los filtros seleccionados.
                 </td>
               </tr>
             ) : (
-              loans.map((loan) => {
+              sortedLoans.map((loan) => {
                 const totalToPay = loan.totalToPay || 0;
 
-                // --- CÁLCULO DINÁMICO DE LO PAGADO Y PENDIENTE ---
                 const totalPaidSoFar = Array.isArray(loan.payments)
                   ? loan.payments.reduce((acc, p) => acc + (p.amount || 0), 0)
                   : (loan.paidAmount || 0);
@@ -101,19 +116,16 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
                     <td className="p-4 text-neutral-400">{loan.installments}</td>
                     <td className="p-4 text-neutral-400">{loan.frequency}</td>
                     
-                    {/* Total a Pagar */}
                     <td className="p-4 font-semibold text-emerald-400">
                       {formatMoney(totalToPay)}
                     </td>
 
-                    {/* Valor pendiente calculado en tiempo real */}
                     <td className="p-4 font-semibold text-amber-400">
                       {formatMoney(pendingAmount)}
                     </td>
 
-                    {/* Fecha de la próxima cuota */}
                     <td className="p-4 text-neutral-300 font-medium">
-                      {getNextDueDate(loan)}
+                      {getNextDueDateFormatted(loan)}
                     </td>
 
                     <td className="p-4">
@@ -128,12 +140,11 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan }) {
                       </span>
                     </td>
 
-                    {/* Acciones */}
                     <td className="p-4 text-center">
                       <div className="flex gap-2 justify-center">
                         {loan.status !== "PAGADO" && (
                           <button
-                            onClick={() => setSelectedLoanForPayment(loan)} // <--- Abre el modal de pago
+                            onClick={() => setSelectedLoanForPayment(loan)}
                             className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
                           >
                             Pagar 💵

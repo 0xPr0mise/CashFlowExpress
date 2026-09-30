@@ -388,7 +388,7 @@ export default function PaymentModal({ loan, onClose, onPaymentSuccess }) {
                   </span>
                 </div>
 
-                {/* Selector de Método de Pago */}
+                {/* Selector de Método de Pago (Limitado a Efectivo y Transferencia) */}
                 <div>
                   <label className="block text-xs font-semibold text-neutral-300 uppercase mb-1">Método de Pago</label>
                   <select
@@ -396,10 +396,8 @@ export default function PaymentModal({ loan, onClose, onPaymentSuccess }) {
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
                   >
-                    <option value="EFECTIVO">Efectivo</option>
-                    <option value="TRANSFERENCIA">Transferencia</option>
-                    <option value="TARJETA">Tarjeta</option>
-                    <option value="OTRO">Otro</option>
+                    <option value="EFECTIVO">EFECTIVO</option>
+                    <option value="TRANSFERENCIA">TRANSFERENCIA</option>
                   </select>
                 </div>
 

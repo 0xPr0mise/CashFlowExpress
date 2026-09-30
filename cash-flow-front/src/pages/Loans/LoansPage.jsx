@@ -1,19 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getLoans, createLoan, deleteLoan } from "../../services/loans.service";
 import { getClients } from "../../services/client.service";
 import { getSettings } from "../../services/settings.service";
 import LoanForm from "./components/LoanForm";
 import LoansTable from "./components/LoansTable";
+import UpcomingExpirationsModal from "../../components/loans/UpcomingExpirationsModal";
 
 export default function LoansPage() {
   const [loans, setLoans] = useState([]);
   const [clients, setClients] = useState([]);
   const [defaultInterest, setDefaultInterest] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("TODOS");
+  
+  // Por defecto arranca en "ACTIVO"
+  const [filterStatus, setFilterStatus] = useState("ACTIVO");
+  
   const [loading, setLoading] = useState(false);
   
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
+  const [isExpirationsModalOpen, setIsExpirationsModalOpen] = useState(false);
 
   const loadData = async () => {
     try {
@@ -24,7 +29,6 @@ export default function LoansPage() {
       ]);
 
       if (Array.isArray(loansData)) {
-        // Normalizamos los datos por si el backend usa snake_case o camelCase
         const normalizedLoans = loansData.map((loan) => ({
           ...loan,
           dueDate: loan.dueDate || loan.due_date,
@@ -47,7 +51,7 @@ export default function LoansPage() {
         }
       }
     } catch (error) {
-      console.error("Error al cargar datos de préstamos, clientes o configuraciones:", error);
+      console.error("Error al cargar datos:", error);
     }
   };
 
@@ -80,30 +84,78 @@ export default function LoansPage() {
     }
   };
 
-  const totalLoanedAmount = loans.reduce(
-    (acc, curr) => acc + (curr.amount || 0),
-    0,
-  );
+  // Cálculo de cuotas urgentes (para el badge de la campana)
+  const urgentCount = useMemo(() => {
+    let count = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const activeLoansCount = loans.filter(
-    (l) => l.status === "ACTIVO" || !l.status,
-  ).length;
+    loans.forEach((loan) => {
+      let schedule = [];
+      try {
+        schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
+      } catch (e) {
+        schedule = [];
+      }
 
-  const totalPortfolioValue = loans.reduce(
-    (acc, curr) => acc + (curr.totalToPay || curr.amount || 0),
-    0,
-  );
+      schedule.forEach((inst) => {
+        if (inst.status !== "PAGADO" && inst.dueDate) {
+          const cleanDate = inst.dueDate.split("T")[0];
+          const [year, month, day] = cleanDate.split("-");
+          const dueDate = new Date(year, month - 1, day);
+          const diffTime = dueDate - today;
+          const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+          if (daysLeft <= 2) {
+            count++;
+          }
+        }
+      });
+    });
+    return count;
+  }, [loans]);
+
+  const totalLoanedAmount = loans.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const activeLoansCount = loans.filter((l) => l.status === "ACTIVO" || !l.status).length;
+  const totalPortfolioValue = loans.reduce((acc, curr) => acc + (curr.totalToPay || curr.amount || 0), 0);
+
+  // Filtrado de préstamos principal
   const filteredLoans = loans.filter((loan) => {
-    const matchesStatus =
-      filterStatus === "TODOS" || loan.status === filterStatus;
-
     const clientName = loan.client?.name || loan.clientName || "";
     const matchesSearch =
       clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (loan.id && String(loan.id).includes(searchTerm));
 
-    return matchesStatus && matchesSearch;
+    if (!matchesSearch) return false;
+
+    if (filterStatus === "TODOS") return true;
+    if (filterStatus === "ACTIVO") return loan.status === "ACTIVO" || !loan.status;
+    if (filterStatus === "PAGADO") return loan.status === "PAGADO";
+    
+    if (filterStatus === "PROXIMO_VENCER") {
+      if (loan.status === "PAGADO") return false;
+      let schedule = [];
+      try {
+        schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
+      } catch (e) {
+        schedule = [];
+      }
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      const todayObj = new Date(todayStr);
+
+      const hasUpcoming = schedule.some((inst) => {
+        if (inst.status === "PAGADO" || !inst.dueDate) return false;
+        const rawDate = inst.dueDate.split("T")[0];
+        const dueDateObj = new Date(rawDate);
+        const diffDays = Math.ceil((dueDateObj - todayObj) / (1000 * 60 * 60 * 24));
+        return diffDays <= 7; // Próximos en 7 días o vencidos
+      });
+
+      return hasUpcoming;
+    }
+
+    return true;
   });
 
   return (
@@ -122,9 +174,24 @@ export default function LoansPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-xs text-neutral-400 hidden sm:flex items-center gap-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-              Módulo Activo
+            {/* Botón de la campana modal */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsExpirationsModalOpen(true)}
+                className="relative p-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer shadow-lg flex items-center justify-center"
+                title="Ver panel de vencimientos urgentes"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+
+                {urgentCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                    {urgentCount}
+                  </span>
+                )}
+              </button>
             </div>
             
             <button
@@ -139,6 +206,7 @@ export default function LoansPage() {
           </div>
         </div>
 
+        {/* Tarjetas de Resumen */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-red-600 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
@@ -147,9 +215,6 @@ export default function LoansPage() {
             <p className="text-3xl font-black text-white tracking-tight">
               ${totalLoanedAmount.toFixed(2)}
             </p>
-            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
-              Suma base prestada
-            </span>
           </div>
 
           <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-emerald-500 bg-neutral-900/60 backdrop-blur-sm">
@@ -159,9 +224,6 @@ export default function LoansPage() {
             <p className="text-3xl font-black text-emerald-400 tracking-tight">
               {activeLoansCount}
             </p>
-            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
-              De {loans.length} créditos totales
-            </span>
           </div>
 
           <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-neutral-500 bg-neutral-900/60 backdrop-blur-sm">
@@ -171,9 +233,6 @@ export default function LoansPage() {
             <p className="text-3xl font-black text-neutral-200 tracking-tight">
               ${totalPortfolioValue.toFixed(2)}
             </p>
-            <span className="inline-block mt-3 text-xs text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-neutral-800">
-              Capital + intereses globales
-            </span>
           </div>
         </div>
 
@@ -186,14 +245,20 @@ export default function LoansPage() {
           loading={loading}
         />
 
+        <UpcomingExpirationsModal
+          isOpen={isExpirationsModalOpen}
+          onClose={() => setIsExpirationsModalOpen(false)}
+          loans={loans}
+        />
+
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h3 className="text-lg font-bold text-white">
               Préstamos Registrados
             </h3>
 
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="w-full sm:w-64">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              <div className="w-full sm:w-56">
                 <input
                   type="text"
                   placeholder="Buscar por cliente..."
@@ -203,10 +268,32 @@ export default function LoansPage() {
                 />
               </div>
 
+              {/* Botones de Filtro Superior con el ícono de Próximos a Vencer */}
               <div className="flex items-center gap-1 bg-neutral-900/80 p-1 border border-neutral-800 rounded-xl w-full sm:w-auto overflow-x-auto">
                 <button
+                  onClick={() => setFilterStatus("ACTIVO")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    filterStatus === "ACTIVO"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/50"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  Activos
+                </button>
+                <button
+                  onClick={() => setFilterStatus("PROXIMO_VENCER")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    filterStatus === "PROXIMO_VENCER"
+                      ? "bg-amber-600 text-white shadow-md shadow-amber-950/50"
+                      : "text-amber-400 hover:text-white"
+                  }`}
+                  title="Filtrar préstamos próximos a vencer o vencidos"
+                >
+                  🔔 Próximos
+                </button>
+                <button
                   onClick={() => setFilterStatus("TODOS")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     filterStatus === "TODOS"
                       ? "bg-red-600 text-white shadow-md shadow-red-950/50"
                       : "text-neutral-400 hover:text-white"
@@ -215,18 +302,8 @@ export default function LoansPage() {
                   Todos
                 </button>
                 <button
-                  onClick={() => setFilterStatus("ACTIVO")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    filterStatus === "ACTIVO"
-                      ? "bg-red-600 text-white shadow-md shadow-red-950/50"
-                      : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  Activos
-                </button>
-                <button
                   onClick={() => setFilterStatus("PAGADO")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     filterStatus === "PAGADO"
                       ? "bg-red-600 text-white shadow-md shadow-red-950/50"
                       : "text-neutral-400 hover:text-white"

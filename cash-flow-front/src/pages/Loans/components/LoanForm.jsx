@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Swal from "sweetalert2"; // <--- Importamos SweetAlert2
+import Swal from "sweetalert2";
 import BudgetReceipt from "../../../components/Receipts/BudgetReceipt";
 import LoanDisbursementReceipt from "../../../components/Receipts/LoanDisbursementReceipt";
 
@@ -16,6 +16,7 @@ export default function LoanForm({
     interestRate: String(defaultInterestRate),
     installments: "1",
     frequency: "A_TERMINO",
+    paymentMethod: "EFECTIVO",
     dueDate: "",
   });
 
@@ -124,6 +125,7 @@ export default function LoanForm({
     const baseInterestRate = parseInt(form.interestRate, 10) || parseInt(defaultInterestRate, 10) || 20;
     const installments = parseInt(form.installments, 10) || 1;
     const frequency = form.frequency;
+    const paymentMethod = form.paymentMethod;
 
     let finalInterestRate = baseInterestRate;
     let interestAmount = 0;
@@ -185,6 +187,7 @@ export default function LoanForm({
       interestRate: finalInterestRate,
       installments,
       frequency,
+      paymentMethod,
       dueDate: form.dueDate,
       daysDiff: currentDaysDiff,
       interestAmount,
@@ -199,18 +202,17 @@ export default function LoanForm({
   const handleConfirmLoan = async () => {
     if (!calculatedDetails) return;
 
-    // Reemplazamos window.confirm por SweetAlert2
     const result = await Swal.fire({
       title: "¿Estás seguro?",
-      text: "Se va a otorgar y registrar este préstamo en el sistema.",
+      text: `Se va a otorgar y registrar este préstamo por ${calculatedDetails.paymentMethod}.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Sí, otorgar",
       cancelButtonText: "Cancelar",
-      background: "#171717", // Neutral-900 para combinar con tu UI
+      background: "#171717",
       color: "#ffffff",
-      confirmButtonColor: "#dc2626", // Rojo estilo Tailwind (red-600)
-      cancelButtonColor: "#404040",   // Neutral-700
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#404040",
       customClass: {
         popup: "border border-neutral-800 rounded-2xl shadow-2xl"
       }
@@ -223,6 +225,7 @@ export default function LoanForm({
       amount: calculatedDetails.amount,
       installments: calculatedDetails.installments,
       frequency: calculatedDetails.frequency,
+      paymentMethod: calculatedDetails.paymentMethod,
       interestRate: calculatedDetails.interestRate,
       dueDate: calculatedDetails.dueDate,
       totalToPay: calculatedDetails.totalToPay,
@@ -238,6 +241,7 @@ export default function LoanForm({
       interestRate: String(defaultInterestRate),
       installments: "1",
       frequency: "A_TERMINO",
+      paymentMethod: "EFECTIVO",
       dueDate: "",
     });
     
@@ -255,7 +259,7 @@ export default function LoanForm({
     <>
       {/* MODAL 1: Formulario principal */}
       <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
-        <div className="relative w-full max-w-3xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="relative w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
           
           <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -274,9 +278,11 @@ export default function LoanForm({
           </div>
 
           <form onSubmit={handleOpenPreview} className="space-y-4 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Grilla balanceada de 2 columnas para asegurar estabilidad visual */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
-              <div className="sm:col-span-2 lg:col-span-3">
+              {/* Cliente (Ocupa las 2 columnas) */}
+              <div className="sm:col-span-2 w-full">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                   Cliente *
                 </label>
@@ -297,7 +303,8 @@ export default function LoanForm({
                 </select>
               </div>
 
-              <div>
+              {/* Monto */}
+              <div className="w-full">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                   Monto ($) *
                 </label>
@@ -311,7 +318,8 @@ export default function LoanForm({
                 />
               </div>
 
-              <div>
+              {/* Interés Mensual */}
+              <div className="w-full">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                   Interés Mensual (%) *
                 </label>
@@ -324,7 +332,24 @@ export default function LoanForm({
                 />
               </div>
 
-              <div>
+              {/* Forma de Entrega */}
+              <div className="w-full">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                  Forma de Entrega (Canal) *
+                </label>
+                <select
+                  name="paymentMethod"
+                  value={form.paymentMethod}
+                  onChange={handleChange}
+                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors cursor-pointer"
+                >
+                  <option value="EFECTIVO">EFECTIVO</option>
+                  <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                </select>
+              </div>
+
+              {/* Cuotas */}
+              <div className="w-full">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                   Cuotas *
                 </label>
@@ -337,7 +362,8 @@ export default function LoanForm({
                 />
               </div>
 
-              <div>
+              {/* Frecuencia */}
+              <div className="w-full">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                   Frecuencia *
                 </label>
@@ -355,13 +381,14 @@ export default function LoanForm({
                 </select>
               </div>
 
-              <div className="sm:col-span-2">
+              {/* Fecha de Vencimiento */}
+              <div className="w-full">
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400">
                     {installmentsNum > 1 ? "Fecha 1er Vencimiento *" : "Fecha de Vencimiento *"}
                   </label>
-                  <span className="text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
-                    Plazo calculado: {currentDaysDiff} días
+                  <span className="text-[10px] sm:text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
+                    {currentDaysDiff} días
                   </span>
                 </div>
                 <input
@@ -373,6 +400,7 @@ export default function LoanForm({
                   className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors cursor-pointer scheme-dark"
                 />
               </div>
+
             </div>
 
             <div className="flex justify-end gap-3 pt-3 border-t border-neutral-800">
@@ -387,7 +415,7 @@ export default function LoanForm({
                 type="submit"
                 className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer"
               >
-                Previsualizar Préstamo / Presupuesto
+                Previsualizar Préstamo
               </button>
             </div>
           </form>
@@ -420,6 +448,10 @@ export default function LoanForm({
               <div className="flex justify-between">
                 <span className="text-neutral-400">Monto Solicitado:</span>
                 <span className="text-white font-medium">${calculatedDetails.amount.toLocaleString("es-AR")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Forma de Entrega:</span>
+                <span className="text-amber-400 font-bold uppercase">{calculatedDetails.paymentMethod}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-400">Plazo / Frecuencia:</span>
@@ -515,6 +547,10 @@ export default function LoanForm({
               <div className="flex justify-between">
                 <span className="text-neutral-400">Monto Entregado:</span>
                 <span className="text-emerald-400 font-bold">${successLoanData.amount.toLocaleString("es-AR")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Forma de Desembolso:</span>
+                <span className="text-amber-400 font-bold uppercase">{successLoanData.paymentMethod}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-400">Total a Devolver:</span>
