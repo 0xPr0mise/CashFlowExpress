@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { getLoans, createLoan, deleteLoan } from "../../services/loans.service";
+import { getLoans, createLoan, deleteLoan, updateLoan } from "../../services/loans.service";
 import { getClients } from "../../services/client.service";
 import { getSettings } from "../../services/settings.service";
 import LoanForm from "./components/LoanForm";
@@ -12,13 +12,12 @@ export default function LoansPage() {
   const [defaultInterest, setDefaultInterest] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Por defecto arranca en "ACTIVO"
   const [filterStatus, setFilterStatus] = useState("ACTIVO");
-  
   const [loading, setLoading] = useState(false);
   
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [isExpirationsModalOpen, setIsExpirationsModalOpen] = useState(false);
+  const [refinanceInitialData, setRefinanceInitialData] = useState(null);
 
   const loadData = async () => {
     try {
@@ -32,9 +31,9 @@ export default function LoansPage() {
         const normalizedLoans = loansData.map((loan) => ({
           ...loan,
           dueDate: loan.dueDate || loan.due_date,
-          totalToPay: loan.totalToPay || loan.total_to_pay || loan.amount,
-          pendingAmount: loan.pendingAmount !== undefined ? loan.pendingAmount : (loan.pending_amount !== undefined ? loan.pending_amount : 0),
-          schedule: loan.schedule || loan.installmentsList || loan.installments_list || [],
+          totalToPay: loan.status === "REFINANCIADO" ? 0 : (loan.totalToPay || loan.total_to_pay || loan.amount),
+          pendingAmount: loan.status === "REFINANCIADO" || loan.status === "PAGADO" ? 0 : (loan.pendingAmount !== undefined ? loan.pendingAmount : (loan.pending_amount !== undefined ? loan.pending_amount : 0)),
+          schedule: loan.status === "REFINANCIADO" ? [] : (loan.schedule || loan.installmentsList || loan.installments_list || []),
         }));
         setLoans(normalizedLoans);
       }
@@ -62,7 +61,22 @@ export default function LoansPage() {
   const handleCreateLoan = async (loanData) => {
     setLoading(true);
     try {
-      await createLoan(loanData);
+      const cleanLoanData = {
+        clientId: loanData.clientId,
+        amount: Number(loanData.amount),
+        installments: parseInt(loanData.installments, 10),
+        frequency: loanData.frequency,
+        interestRate: Number(loanData.interestRate),
+        dueDate: loanData.dueDate,
+        totalToPay: Number(loanData.totalToPay),
+        days: Number(loanData.days),
+        schedule: loanData.schedule,
+        paymentMethod: loanData.paymentMethod,
+      };
+
+      await createLoan(cleanLoanData);
+      setRefinanceInitialData(null); 
+      setIsLoanModalOpen(false);
       await loadData();
     } catch (error) {
       console.error("Error al crear préstamo:", error);
@@ -84,13 +98,44 @@ export default function LoansPage() {
     }
   };
 
-  // Cálculo de cuotas urgentes (para el badge de la campana)
+  const handleRefinanceLoan = async (refinancePayload) => {
+    try {
+      setLoading(true);
+      const oldLoanId = refinancePayload.oldLoanId;
+
+      // Actualizamos explícitamente en el backend el préstamo viejo a REFINANCIADO y saldo/cuotas a 0
+      if (oldLoanId) {
+        await updateLoan(oldLoanId, {
+          status: "REFINANCIADO",
+          totalToPay: 0,
+          schedule: [],
+        });
+      }
+
+      // Pre-cargamos el formulario con el monto remanente exacto para el nuevo préstamo
+      setRefinanceInitialData({
+        clientId: refinancePayload.clientId,
+        amount: String(refinancePayload.amount),
+        interestRate: refinancePayload.interestRate ? String(refinancePayload.interestRate) : String(defaultInterest),
+      });
+
+      setIsLoanModalOpen(true);
+      await loadData();
+    } catch (error) {
+      console.error("Error al procesar la refinanciación:", error);
+      alert("No se pudo completar la refinanciación en el servidor.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const urgentCount = useMemo(() => {
     let count = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     loans.forEach((loan) => {
+      if (loan.status === "REFINANCIADO" || loan.status === "PAGADO") return;
       let schedule = [];
       try {
         schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
@@ -117,9 +162,8 @@ export default function LoansPage() {
 
   const totalLoanedAmount = loans.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   const activeLoansCount = loans.filter((l) => l.status === "ACTIVO" || !l.status).length;
-  const totalPortfolioValue = loans.reduce((acc, curr) => acc + (curr.totalToPay || curr.amount || 0), 0);
+  const totalPortfolioValue = loans.reduce((acc, curr) => acc + (curr.status === "REFINANCIADO" ? 0 : (curr.totalToPay || curr.amount || 0)), 0);
 
-  // Filtrado de préstamos principal
   const filteredLoans = loans.filter((loan) => {
     const clientName = loan.client?.name || loan.clientName || "";
     const matchesSearch =
@@ -133,7 +177,7 @@ export default function LoansPage() {
     if (filterStatus === "PAGADO") return loan.status === "PAGADO";
     
     if (filterStatus === "PROXIMO_VENCER") {
-      if (loan.status === "PAGADO") return false;
+      if (loan.status === "PAGADO" || loan.status === "REFINANCIADO") return false;
       let schedule = [];
       try {
         schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
@@ -149,7 +193,7 @@ export default function LoansPage() {
         const rawDate = inst.dueDate.split("T")[0];
         const dueDateObj = new Date(rawDate);
         const diffDays = Math.ceil((dueDateObj - todayObj) / (1000 * 60 * 60 * 24));
-        return diffDays <= 7; // Próximos en 7 días o vencidos
+        return diffDays <= 7;
       });
 
       return hasUpcoming;
@@ -174,7 +218,6 @@ export default function LoansPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Botón de la campana modal */}
             <div className="relative">
               <button
                 type="button"
@@ -195,7 +238,10 @@ export default function LoansPage() {
             </div>
             
             <button
-              onClick={() => setIsLoanModalOpen(true)}
+              onClick={() => {
+                setRefinanceInitialData(null);
+                setIsLoanModalOpen(true);
+              }}
               className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,11 +284,15 @@ export default function LoansPage() {
 
         <LoanForm
           isOpen={isLoanModalOpen}
-          onClose={() => setIsLoanModalOpen(false)}
+          onClose={() => {
+            setIsLoanModalOpen(false);
+            setRefinanceInitialData(null);
+          }}
           clients={clients}
           onLoanCreated={handleCreateLoan}
           defaultInterestRate={defaultInterest}
           loading={loading}
+          initialData={refinanceInitialData}
         />
 
         <UpcomingExpirationsModal
@@ -268,7 +318,6 @@ export default function LoansPage() {
                 />
               </div>
 
-              {/* Botones de Filtro Superior con el ícono de Próximos a Vencer */}
               <div className="flex items-center gap-1 bg-neutral-900/80 p-1 border border-neutral-800 rounded-xl w-full sm:w-auto overflow-x-auto">
                 <button
                   onClick={() => setFilterStatus("ACTIVO")}
@@ -320,6 +369,7 @@ export default function LoansPage() {
               loans={filteredLoans}
               onLoanUpdated={loadData}
               onDeleteLoan={handleDeleteLoan}
+              onRefinanceLoan={handleRefinanceLoan}
             />
           </div>
         </div>

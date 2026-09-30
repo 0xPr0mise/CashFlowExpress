@@ -10,7 +10,8 @@ export default function LoanForm({
   onClose, 
   clients, 
   onLoanCreated, 
-  defaultInterestRate = 20 
+  defaultInterestRate = 20,
+  initialData = null 
 }) {
   const [form, setForm] = useState({
     clientId: "",
@@ -24,7 +25,8 @@ export default function LoanForm({
     remainderRate: "20",
     multiInstallmentCalc: "plena",   
     subsequentCalcType: "plena",    
-    subsequentRate: "20",             
+    subsequentRate: "20",
+    notes: "",
   });
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -33,11 +35,25 @@ export default function LoanForm({
 
   const todayFormatted = new Date().toISOString().split('T')[0];
 
+  // Sincronizar tasa por defecto si no hay datos iniciales
   useEffect(() => {
-    if (defaultInterestRate !== undefined) {
+    if (defaultInterestRate !== undefined && !initialData) {
       setForm((prev) => ({ ...prev, interestRate: String(Math.round(defaultInterestRate)) }));
     }
-  }, [defaultInterestRate]);
+  }, [defaultInterestRate, initialData]);
+
+  // Precargar datos si viene de una refinanciación
+  useEffect(() => {
+    if (initialData) {
+      setForm((prev) => ({
+        ...prev,
+        clientId: initialData.clientId || "",
+        amount: initialData.amount ? String(initialData.amount) : "",
+        interestRate: initialData.interestRate ? String(initialData.interestRate) : String(defaultInterestRate),
+        notes: initialData.notes || "",
+      }));
+    }
+  }, [initialData, defaultInterestRate]);
 
   useEffect(() => {
     const installmentsNum = parseInt(form.installments, 10) || 1;
@@ -146,6 +162,7 @@ export default function LoanForm({
       totalToPay: calculatedDetails.totalToPay,
       days: calculatedDetails.daysDiff,
       schedule: calculatedDetails.schedule,
+      notes: form.notes || "",
     });
 
     setSuccessLoanData(calculatedDetails);
@@ -162,6 +179,7 @@ export default function LoanForm({
       multiInstallmentCalc: "plena",
       subsequentCalcType: "plena",
       subsequentRate: "20",
+      notes: "",
     });
     setShowPreviewModal(false);
   };
@@ -175,7 +193,7 @@ export default function LoanForm({
           
           <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              Otorgar Nuevo Préstamo
+              {initialData ? "🔄 Refinanciar Préstamo (Nuevo Crédito)" : "Otorgar Nuevo Préstamo"}
             </h3>
             <button
               type="button"
@@ -290,6 +308,19 @@ export default function LoanForm({
                   value={form.dueDate}
                   onChange={handleChange}
                   className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 cursor-pointer scheme-dark"
+                />
+              </div>
+
+              {/* Notas / Historial */}
+              <div className="sm:col-span-2 w-full">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Notas / Historial</label>
+                <textarea
+                  name="notes"
+                  rows="2"
+                  value={form.notes}
+                  onChange={handleChange}
+                  placeholder="Detalles adicionales o motivo de refinanciación..."
+                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
                 />
               </div>
 

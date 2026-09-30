@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Patch } from '@nestjs/common';
 import { LoansService } from './loans.service';
 import { CreateLoanDto } from './dto/create-loan.dto';
 
@@ -38,4 +38,10 @@ export class LoansController {
       body.note,
     );
   }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateLoanDto: any) {
+    return this.loansService.update(id, updateLoanDto);
+  }
+
 }

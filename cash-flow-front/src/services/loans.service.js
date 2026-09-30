@@ -46,3 +46,13 @@ export async function getLoansByClient(clientId) {
   if (!res.ok) throw new Error("Error al obtener los préstamos del cliente");
   return res.json();
 }
+
+export const updateLoan = async (id, data) => {
+  const response = await fetch(`${API_URL}/loans/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error("Error al actualizar el préstamo");
+  return response.json();
+};

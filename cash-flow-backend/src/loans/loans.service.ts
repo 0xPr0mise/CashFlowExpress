@@ -183,4 +183,21 @@ export class LoansService {
       loanStatus: isFullyPaid ? 'PAGADO' : 'ACTIVO',
     };
   }
+
+  async update(id: string, updateData: { status?: string; totalToPay?: number; schedule?: any }) {
+    const loan = await this.prisma.loan.findUnique({ where: { id } });
+    if (!loan) {
+      throw new NotFoundException('Préstamo no encontrado');
+    }
+
+    return this.prisma.loan.update({
+      where: { id },
+      data: {
+        ...(updateData.status && { status: updateData.status }),
+        ...(updateData.totalToPay !== undefined && { totalToPay: updateData.totalToPay }),
+        ...(updateData.schedule && { schedule: JSON.stringify(updateData.schedule) }),
+      },
+      include: { client: true, payments: true },
+    });
+  }
 }
