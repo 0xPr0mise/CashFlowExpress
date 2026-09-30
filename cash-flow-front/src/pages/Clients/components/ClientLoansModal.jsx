@@ -15,7 +15,6 @@ function formatDateStr(dateStr) {
 
 // --- FUNCIÓN DINÁMICA PARA EL RECIBO DE DESEMBOLSO / PRÉSTAMO ---
 function downloadLoanDisbursementAsImage(loanData, clientName, settings) {
-  // Tomamos los valores directamente de los ajustes reales de la app
   const currency = settings?.currency || "$";
   const rawCompanyName = settings?.companyName || "Cash Flow Express";
   const companyId = settings?.receiptCompanyId || "";
@@ -261,7 +260,6 @@ function downloadLoanDisbursementAsImage(loanData, clientName, settings) {
 
 // --- FUNCIÓN DINÁMICA PARA EL RECIBO DE PAGO ---
 function downloadExistingPaymentReceipt(payment, loan, clientName, settings) {
-  // Tomamos los ajustes reales de la aplicación
   const currency = settings?.currency || "$";
   const rawCompanyName = settings?.companyName || "Cash Flow Express";
   const companyId = settings?.receiptCompanyId || "";
@@ -525,6 +523,8 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
             >
               <option value="TODOS">Todos ({loansList.length})</option>
               <option value="ACTIVO">Activos</option>
+              <option value="MOROSO">Morosos</option>
+              <option value="REFINANCIADO">Refinanciados</option>
               <option value="PAGADO">Pagados</option>
               <option value="CANCELADO">Cancelados</option>
             </select>
@@ -577,6 +577,8 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
                         ? 'bg-emerald-950/50 text-emerald-400 border-emerald-900/40' 
                         : status === 'CANCELADO'
                         ? 'bg-red-950/50 text-red-400 border-red-900/40'
+                        : status === 'MOROSO' || status === 'REFINANCIADO'
+                        ? 'bg-purple-950/50 text-purple-400 border-purple-900/40'
                         : 'bg-amber-950/50 text-amber-400 border-amber-900/40'
                     }`}>
                       {status}

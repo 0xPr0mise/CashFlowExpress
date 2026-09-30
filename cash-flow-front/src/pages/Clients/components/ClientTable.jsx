@@ -69,6 +69,18 @@ export default function ClientTable({
                 filteredClients.map((client) => {
                   // --- CÁLCULO SEGURO EN EL FRONTEND ---
                   const clientLoans = client.loans || [];
+                  
+                  // Verificamos si tiene al menos un préstamo refinanciado
+                  const hasRefinancedLoan = clientLoans.some((loan) => {
+                    const status = loan.status ? String(loan.status).toUpperCase() : "";
+                    return (
+                      loan.isRefinanced ||
+                      loan.refinanced ||
+                      loan.is_refinanced ||
+                      status === "REFINANCIADO"
+                    );
+                  });
+
                   const calculatedPending = clientLoans.reduce((sum, loan) => {
                     const status = loan.status ? String(loan.status).toUpperCase() : 'ACTIVO';
                     if (status === 'PAGADO') return sum;
@@ -91,7 +103,16 @@ export default function ClientTable({
                       key={client.id}
                       className="hover:bg-neutral-800/30 transition-colors"
                     >
-                      <td className="p-4 font-bold text-white">{client.name}</td>
+                      <td className="p-4 font-bold text-white">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <span>{client.name}</span>
+                          {hasRefinancedLoan && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800 w-fit">
+                              Refinanciado
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-4 text-neutral-300">{client.phone}</td>
                       <td className="p-4 text-neutral-400">
                         {client.dni || "-"}
