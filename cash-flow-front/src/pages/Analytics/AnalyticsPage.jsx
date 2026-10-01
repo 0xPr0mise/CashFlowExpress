@@ -73,6 +73,24 @@ export default function AnalyticsPage() {
   const outstandingPortfolio = Math.max(0, expectedReturn - totalCollected);
   const averageTicket = totalLoans > 0 ? totalLent / totalLoans : 0;
 
+  // 🚨 Nuevos cálculos centralizados de Atrasos / Morosidad
+  const now = new Date();
+  const lateLoansList = (currentData.loans || []).filter(loan => {
+    if (loan.status !== 'ACTIVO' || !loan.dueDate) return false;
+    const dueDate = new Date(loan.dueDate);
+    return dueDate < now;
+  });
+
+  const lateLoansCount = lateLoansList.length;
+  const defaultRate = totalLoans > 0 ? ((lateLoansCount / totalLoans) * 100).toFixed(1) : 0;
+  
+  const totalLateAmount = lateLoansList.reduce((acc, loan) => {
+    const loanTotal = Number(loan.totalToPay) || 0;
+    const paidSum = (loan.payments || []).reduce((pAcc, p) => pAcc + (Number(p.amount) || 0), 0);
+    const pending = loanTotal - paidSum;
+    return acc + (pending > 0 ? pending : 0);
+  }, 0);
+
   const calculations = {
     totalLoans,
     activeLoans,
@@ -88,6 +106,9 @@ export default function AnalyticsPage() {
     collectionRate,
     outstandingPortfolio,
     averageTicket,
+    lateLoansCount,
+    defaultRate,
+    totalLateAmount,
   };
 
   return (
