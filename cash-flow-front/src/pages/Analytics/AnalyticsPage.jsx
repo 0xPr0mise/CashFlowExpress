@@ -9,32 +9,34 @@ export default function AnalyticsPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Carga inicial y por cambio de filtros consumiendo el backend
-  const fetchAnalyticsData = (filters = {}) => {
-    setLoading(true);
-    getAnalytics(filters)
-      .then((data) => {
-        console.log("Datos analíticos recibidos:", data);
-        setStats(data || {});
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error cargando analíticas:", err);
-        setLoading(false);
-      });
+  // Función centralizada para buscar analíticas con filtros
+  const fetchAnalytics = async (filters = {}) => {
+    try {
+      setLoading(true);
+      const data = await getAnalytics(filters);
+      console.log("Datos analíticos actualizados:", data);
+      setStats(data || {});
+    } catch (err) {
+      console.error("Error cargando analíticas:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Carga inicial al montar la página (por defecto "all" o sin filtros)
   useEffect(() => {
-    fetchAnalyticsData({ preset: "all" });
+    fetchAnalytics({ preset: "all" });
   }, []);
 
-  // Recibe los filtros desde AnalyticsFilters y consulta al backend
+  // 🔄 Disparador clave: Cada vez que el usuario cambia un filtro, llamamos al backend
   const handleFilterChange = ({ preset, startDate, endDate }) => {
-    fetchAnalyticsData({
-      preset,
-      startDate: startDate ? startDate.toISOString().split("T")[0] : null,
-      endDate: endDate ? endDate.toISOString().split("T")[0] : null,
-    });
+    const formattedFilters = {
+      preset: preset || "all",
+      startDate: startDate ? (startDate instanceof Date ? startDate.toISOString().split("T")[0] : startDate) : null,
+      endDate: endDate ? (endDate instanceof Date ? endDate.toISOString().split("T")[0] : endDate) : null,
+    };
+
+    fetchAnalytics(formattedFilters);
   };
 
   if (loading && !stats)
