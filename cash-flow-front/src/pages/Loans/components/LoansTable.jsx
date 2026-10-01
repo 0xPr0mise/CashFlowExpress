@@ -1,11 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import PaymentModal from "../../../components/loans/PaymentModal";
-import { markLoanAsBadDebt } from "../../../services/loans.service"; // 👈 Importamos el servicio para marcar incobrable
+import { markLoanAsBadDebt } from "../../../services/loans.service";
 import Swal from "sweetalert2";
 
 export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefinanceLoan, onSelectLoanForHistory }) {
   const [selectedLoanForPayment, setSelectedLoanForPayment] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
+  const [activeDropdownId, setActiveDropdownId] = useState(null);
+  
+  const dropdownRef = useRef(null);
+
+  // Cerrar menú desplegable al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdownId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const formatMoney = (value) => {
     if (value === undefined || value === null || isNaN(value)) return "$0";
@@ -72,8 +86,8 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
     return dueDate < today;
   };
 
-  // Función para manejar el clic en "Marcar como Incobrable"
   const handleBadDebtClick = async (loan) => {
+    setActiveDropdownId(null);
     const result = await Swal.fire({
       title: "¿Marcar como Préstamo Incobrable?",
       html: `
@@ -112,9 +126,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
         confirmButtonColor: "#10b981",
       });
 
-      if (onLoanUpdated) {
-        onLoanUpdated();
-      }
+      if (onLoanUpdated) onLoanUpdated();
     } catch (error) {
       console.error("Error al marcar como incobrable:", error);
       Swal.fire({
@@ -131,6 +143,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
   };
 
   const handleRefinanceClick = async (loan) => {
+    setActiveDropdownId(null);
     let schedule = [];
     try {
       schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
@@ -185,9 +198,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
         oldLoanId: loan.id,
       };
 
-      if (onRefinanceLoan) {
-        onRefinanceLoan(refinancePayload);
-      }
+      if (onRefinanceLoan) onRefinanceLoan(refinancePayload);
     } catch (error) {
       console.error("Error al refinanciar préstamo:", error);
     } finally {
@@ -206,7 +217,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
   });
 
   return (
-    <div>
+    <div ref={dropdownRef}>
       {sortedLoans.length === 0 ? (
         <div className="text-center py-12 text-neutral-500">
           No hay préstamos para mostrar con los filtros seleccionados.
@@ -287,55 +298,74 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  {/* Acciones móviles */}
+                  <div className="flex items-center gap-2 pt-1 relative">
                     {!isClosed && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLoanForPayment(loan)}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
-                        >
-                          Pagar 💵
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRefinanceClick(loan)}
-                          disabled={loadingId === loan.id}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-950/50 cursor-pointer disabled:opacity-50"
-                        >
-                          {loadingId === loan.id ? "..." : "🔄 Refinanciar"}
-                        </button>
-
-                        {/* Botón de Incobrable (Móvil) */}
-                        <button
-                          type="button"
-                          onClick={() => handleBadDebtClick(loan)}
-                          disabled={loadingId === loan.id}
-                          className="w-full bg-neutral-800 hover:bg-rose-950/60 text-rose-400 border border-neutral-700 hover:border-rose-900 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                          title="Marcar como incobrable"
-                        >
-                          ⚠️ Marcar como Incobrable
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLoanForPayment(loan)}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
+                      >
+                        Pagar 💵
+                      </button>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={() => onSelectLoanForHistory && onSelectLoanForHistory(loan)}
-                      className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1"
-                      title="Ver historial y tickets"
-                    >
-                      📋 Historial
-                    </button>
+                    {/* Botonera Desplegable Móvil */}
+                    <div className={`relative ${isClosed ? "w-full" : "flex-1"}`}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveDropdownId(activeDropdownId === loan.id ? null : loan.id)}
+                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <span>⚙️ Acciones</span>
+                        <span className="text-[10px]">▼</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => onDeleteLoan(loan.id)}
-                      className="bg-neutral-800 hover:bg-red-950/60 text-red-400 border border-neutral-700 hover:border-red-900 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                    >
-                      Eliminar
-                    </button>
+                      {activeDropdownId === loan.id && (
+                        <div className="absolute right-0 bottom-full mb-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-20 overflow-hidden py-1">
+                          {!isClosed && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleRefinanceClick(loan)}
+                                disabled={loadingId === loan.id}
+                                className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                              >
+                                <span>🔄</span> Refinanciar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleBadDebtClick(loan)}
+                                disabled={loadingId === loan.id}
+                                className="w-full text-left px-4 py-2.5 text-xs text-rose-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                              >
+                                <span>⚠️</span> Incobrable
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveDropdownId(null);
+                              if (onSelectLoanForHistory) onSelectLoanForHistory(loan);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs text-neutral-300 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                          >
+                            <span>📋</span> Historial
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveDropdownId(null);
+                              onDeleteLoan(loan.id);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs text-red-500 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer border-t border-neutral-800/60"
+                          >
+                            <span>🗑️</span> Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -343,7 +373,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
           </div>
 
           {/* --- VISTA ESCRITORIO --- */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto min-h-[300px]">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-neutral-800 text-xs uppercase tracking-wider text-neutral-400 bg-black/40">
@@ -417,53 +447,71 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center items-center">
                           {!isClosed && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedLoanForPayment(loan)}
-                                className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
-                              >
-                                Pagar 💵
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleRefinanceClick(loan)}
-                                disabled={loadingId === loan.id}
-                                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white border border-red-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-red-950/50 cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                              >
-                                {loadingId === loan.id ? "..." : "🔄 Refinanciar"}
-                              </button>
-
-                              {/* Botón de Incobrable (Escritorio) */}
-                              <button
-                                type="button"
-                                onClick={() => handleBadDebtClick(loan)}
-                                disabled={loadingId === loan.id}
-                                className="bg-neutral-800 hover:bg-rose-950/60 text-rose-400 border border-neutral-700 hover:border-rose-900 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                                title="Marcar como incobrable"
-                              >
-                                ⚠️ Incobrable
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedLoanForPayment(loan)}
+                              className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
+                            >
+                              Pagar 💵
+                            </button>
                           )}
 
-                          <button
-                            type="button"
-                            onClick={() => onSelectLoanForHistory && onSelectLoanForHistory(loan)}
-                            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
-                            title="Ver historial y tickets"
-                          >
-                            📋 Historial
-                          </button>
+                          {/* Botonera Desplegable Escritorio */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setActiveDropdownId(activeDropdownId === loan.id ? null : loan.id)}
+                              className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <span>⚙️ Acciones</span>
+                              <span className="text-[10px]">▼</span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => onDeleteLoan(loan.id)}
-                            className="bg-neutral-800 hover:bg-red-950/60 text-red-400 border border-neutral-700 hover:border-red-900 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                          >
-                            Eliminar
-                          </button>
+                            {activeDropdownId === loan.id && (
+                              <div className="absolute right-0 mt-2 w-44 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-30 overflow-hidden py-1 text-left">
+                                {!isClosed && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRefinanceClick(loan)}
+                                      disabled={loadingId === loan.id}
+                                      className="w-full px-4 py-2 text-xs text-red-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                                    >
+                                      <span>🔄</span> Refinanciar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleBadDebtClick(loan)}
+                                      disabled={loadingId === loan.id}
+                                      className="w-full px-4 py-2 text-xs text-rose-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                                    >
+                                      <span>⚠️</span> Incobrable
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    if (onSelectLoanForHistory) onSelectLoanForHistory(loan);
+                                  }}
+                                  className="w-full px-4 py-2 text-xs text-neutral-300 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <span>📋</span> Historial
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    onDeleteLoan(loan.id);
+                                  }}
+                                  className="w-full px-4 py-2 text-xs text-red-500 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer border-t border-neutral-800/60"
+                                >
+                                  <span>🗑️</span> Eliminar
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>

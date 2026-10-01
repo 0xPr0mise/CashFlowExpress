@@ -284,6 +284,7 @@ export default function LoansPage() {
     if (filterStatus === "ACTIVO") return loanStatus === "ACTIVO";
     if (filterStatus === "REFINANCIADO") return loanStatus === "REFINANCIADO";
     if (filterStatus === "PAGADO") return loanStatus === "PAGADO";
+    if (filterStatus === "INCOBRABLE") return loanStatus === "INCOBRABLE"; // 👈 Filtro incorporado
 
     return true;
   });
@@ -323,6 +324,8 @@ export default function LoansPage() {
         return "border-purple-500/50 text-purple-400 bg-purple-950/20 focus:border-purple-500";
       case "PAGADO":
         return "border-emerald-500/50 text-emerald-400 bg-emerald-950/20 focus:border-emerald-500";
+      case "INCOBRABLE":
+        return "border-rose-500/50 text-rose-400 bg-rose-950/20 focus:border-rose-500"; // 👈 Estilo agregado
       default:
         return "border-neutral-700 text-white bg-neutral-900 focus:border-neutral-500";
     }
@@ -527,6 +530,7 @@ export default function LoansPage() {
                   <option value="ACTIVO" className="bg-neutral-900 text-amber-400">🟡 Activos</option>
                   <option value="REFINANCIADO" className="bg-neutral-900 text-purple-400">🟣 Refinanciados</option>
                   <option value="PAGADO" className="bg-neutral-900 text-emerald-400">🟢 Pagados</option>
+                  <option value="INCOBRABLE" className="bg-neutral-900 text-rose-400">🔴 Incobrables</option> {/* 👈 Filtro agregado */}
                   <option value="TODOS" className="bg-neutral-900 text-white">⚪ Todos</option>
                 </select>
               </div>
