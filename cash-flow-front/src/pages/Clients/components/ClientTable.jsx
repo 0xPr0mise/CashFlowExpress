@@ -83,7 +83,9 @@ export default function ClientTable({
 
                   const calculatedPending = clientLoans.reduce((sum, loan) => {
                     const status = loan.status ? String(loan.status).toUpperCase() : 'ACTIVO';
-                    if (status === 'PAGADO') return sum;
+                    
+                    // 🛠️️ CORRECCIÓN: Si está pagado o refinanciado, no suma nada al pendiente del cliente
+                    if (status === 'PAGADO' || status === 'REFINANCIADO') return sum;
 
                     const totalToPay = Number(loan.totalToPay || loan.amount || 0);
                     
