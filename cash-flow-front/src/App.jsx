@@ -14,12 +14,12 @@ import SettingsPage from "./pages/Settings/SettingsPage";
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white flex">
-        {/* Nuevo Sidebar Colapsable */}
+      <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white flex flex-col md:flex-row">
+        {/* Sidebar (Lateral en PC, Barra Inferior en Celulares) */}
         <Sidebar />
 
-        {/* Contenedor principal con margen izquierdo para evitar que el sidebar lo tape */}
-        <main className="flex-1 ml-20 md:ml-64 transition-all duration-300 min-h-screen">
+        {/* Contenedor principal */}
+        <main className="flex-1 ml-0 md:ml-64 transition-all duration-300 min-h-screen pb-24 md:pb-6">
           <Routes>
             <Route path="/" element={<Navigate to="/analytics" replace />} />
             <Route path="/clients" element={<ClientsPage />} />

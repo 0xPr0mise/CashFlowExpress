@@ -7,6 +7,7 @@ import LoanForm from "./components/LoanForm";
 import LoansTable from "./components/LoansTable";
 import UpcomingExpirationsModal from "../../components/loans/UpcomingExpirationsModal";
 import LoanSuccessModal from "./components/LoanSuccessModal";
+import LoanDetailModal from "../../components/loans/LoanDetailModal";
 
 export default function LoansPage() {
   const [loans, setLoans] = useState([]);
@@ -26,6 +27,9 @@ export default function LoansPage() {
 
   const [refinanceInitialData, setRefinanceInitialData] = useState(null);
   const [currentOldLoanId, setCurrentOldLoanId] = useState(null);
+
+  // Estado para controlar el préstamo seleccionado para el historial / detalle
+  const [selectedLoanForHistory, setSelectedLoanForHistory] = useState(null);
 
   const formatMoney = (amount) => {
     const rounded = Math.round(amount || 0);
@@ -375,10 +379,9 @@ export default function LoansPage() {
           </div>
         </div>
 
-        {/* --- TARJETAS DE RESUMEN (KPIs) REORGANIZADAS Y COLOREADAS --- */}
+        {/* --- TARJETAS DE RESUMEN (KPIs) --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           
-          {/* 1. Créditos Activos / Vigentes (Ámbar / Amarillo Operativo) */}
           <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-amber-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Créditos Activos / Vigentes
@@ -388,7 +391,6 @@ export default function LoansPage() {
             </p>
           </div>
 
-          {/* 2. Capital Colocado Total (Púrpura / Inversión) */}
           <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-purple-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Capital Colocado Total
@@ -398,7 +400,6 @@ export default function LoansPage() {
             </p>
           </div>
 
-          {/* 3. Saldo Pendiente Total (Azul / Cartera a Cobrar) */}
           <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-blue-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Saldo Pendiente Total
@@ -408,7 +409,6 @@ export default function LoansPage() {
             </p>
           </div>
 
-          {/* 4. Capital Vencido (Rojo / Alerta de Mora) */}
           <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-rose-600 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Capital Vencido
@@ -445,6 +445,15 @@ export default function LoansPage() {
           onClose={() => setIsExpirationsModalOpen(false)}
           loans={loans}
         />
+
+        {/* Modal de Historial / Detalle */}
+        {selectedLoanForHistory && (
+          <LoanDetailModal
+            isOpen={!!selectedLoanForHistory}
+            loan={selectedLoanForHistory}
+            onClose={() => setSelectedLoanForHistory(null)}
+          />
+        )}
 
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-neutral-900/40 p-4 rounded-2xl border border-neutral-800/80 backdrop-blur-sm">
@@ -530,6 +539,7 @@ export default function LoansPage() {
               onLoanUpdated={loadData}
               onDeleteLoan={handleDeleteLoan}
               onRefinanceLoan={handleRefinanceLoan}
+              onSelectLoanForHistory={(loan) => setSelectedLoanForHistory(loan)}
             />
           </div>
         </div>
