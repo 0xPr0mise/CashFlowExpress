@@ -227,4 +227,19 @@ export class LoansService {
       include: { client: true, payments: true },
     });
   }
+
+  async markAsBadDebt(id: string) {
+    const loan = await this.prisma.loan.findUnique({ where: { id } });
+    if (!loan) {
+      throw new NotFoundException('Préstamo no encontrado');
+    }
+
+    return await this.prisma.loan.update({
+      where: { id },
+      data: {
+        status: 'INCOBRABLE',
+        schedule: "[]", // Vaciamos el cronograma para quitar los vencimientos pendientes
+      },
+    });
+  }
 }

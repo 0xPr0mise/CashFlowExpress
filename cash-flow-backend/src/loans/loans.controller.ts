@@ -44,4 +44,9 @@ export class LoansController {
     return this.loansService.update(id, updateLoanDto);
   }
 
+  @Patch(':id/bad-debt')
+  async markAsBadDebt(@Param('id') id: string) {
+    return this.loansService.markAsBadDebt(id);
+  }
+
 }

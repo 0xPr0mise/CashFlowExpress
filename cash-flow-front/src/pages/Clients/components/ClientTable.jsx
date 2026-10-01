@@ -52,6 +52,12 @@ export default function ClientTable({
             {filteredClients.map((client) => {
               const clientLoans = client.loans || [];
               
+              // 🚨 Detección de préstamo incobrable
+              const hasBadDebtLoan = clientLoans.some((loan) => {
+                const status = loan.status ? String(loan.status).toUpperCase() : "";
+                return status === "INCOBRABLE";
+              });
+
               const hasRefinancedLoan = clientLoans.some((loan) => {
                 const status = loan.status ? String(loan.status).toUpperCase() : "";
                 return (
@@ -64,7 +70,7 @@ export default function ClientTable({
 
               const calculatedPending = clientLoans.reduce((sum, loan) => {
                 const status = loan.status ? String(loan.status).toUpperCase() : 'ACTIVO';
-                if (status === 'PAGADO' || status === 'REFINANCIADO') return sum;
+                if (status === 'PAGADO' || status === 'REFINANCIADO' || status === 'INCOBRABLE') return sum;
 
                 const totalToPay = Number(loan.totalToPay || loan.amount || 0);
                 const totalPaid = Array.isArray(loan.payments)
@@ -80,7 +86,11 @@ export default function ClientTable({
               return (
                 <div
                   key={client.id}
-                  className="bg-neutral-900/80 border border-neutral-800/80 rounded-2xl p-4 shadow-lg space-y-3 backdrop-blur-sm"
+                  className={`border rounded-2xl p-4 shadow-lg space-y-3 backdrop-blur-sm ${
+                    hasBadDebtLoan 
+                      ? "bg-rose-950/30 border-rose-600/80 shadow-rose-950/50" 
+                      : "bg-neutral-900/80 border-neutral-800/80"
+                  }`}
                 >
                   {/* Cabecera de la tarjeta */}
                   <div className="flex items-start justify-between gap-2 border-b border-neutral-800/80 pb-3">
@@ -92,11 +102,20 @@ export default function ClientTable({
                         📞 {client.phone || "Sin teléfono"} {client.dni ? `• DNI: ${client.dni}` : ""}
                       </p>
                     </div>
-                    {hasRefinancedLoan && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800">
-                        Refinanciado
-                      </span>
-                    )}
+
+                    <div className="flex flex-col items-end gap-1">
+                      {/* ⚠️ ALERTA TAMAÑO CAÑON PARA MÓVIL */}
+                      {hasBadDebtLoan && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white shadow-lg shadow-rose-900 animate-pulse border border-rose-400">
+                          ⚠️ INCOBRABLE
+                        </span>
+                      )}
+                      {hasRefinancedLoan && !hasBadDebtLoan && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800">
+                          Refinanciado
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Detalles de ubicación y referidos */}
@@ -167,6 +186,12 @@ export default function ClientTable({
                   {filteredClients.map((client) => {
                     const clientLoans = client.loans || [];
                     
+                    // 🚨 Detección de préstamo incobrable
+                    const hasBadDebtLoan = clientLoans.some((loan) => {
+                      const status = loan.status ? String(loan.status).toUpperCase() : "";
+                      return status === "INCOBRABLE";
+                    });
+
                     const hasRefinancedLoan = clientLoans.some((loan) => {
                       const status = loan.status ? String(loan.status).toUpperCase() : "";
                       return (
@@ -179,7 +204,7 @@ export default function ClientTable({
 
                     const calculatedPending = clientLoans.reduce((sum, loan) => {
                       const status = loan.status ? String(loan.status).toUpperCase() : 'ACTIVO';
-                      if (status === 'PAGADO' || status === 'REFINANCIADO') return sum;
+                      if (status === 'PAGADO' || status === 'REFINANCIADO' || status === 'INCOBRABLE') return sum;
 
                       const totalToPay = Number(loan.totalToPay || loan.amount || 0);
                       const totalPaid = Array.isArray(loan.payments)
@@ -195,16 +220,28 @@ export default function ClientTable({
                     return (
                       <tr
                         key={client.id}
-                        className="hover:bg-neutral-800/30 transition-colors"
+                        className={`transition-colors ${
+                          hasBadDebtLoan 
+                            ? "bg-rose-950/20 hover:bg-rose-950/40 border-l-4 border-l-rose-600" 
+                            : "hover:bg-neutral-800/30"
+                        }`}
                       >
                         <td className="p-4 font-bold text-white">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <div className="flex flex-col gap-1.5">
                             <span>{client.name}</span>
-                            {hasRefinancedLoan && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800 w-fit">
-                                Refinanciado
-                              </span>
-                            )}
+                            <div className="flex flex-wrap gap-1.5">
+                              {/* ⚠️ ALERTA TAMAÑO CAÑON PARA ESCRITORIO */}
+                              {hasBadDebtLoan && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white shadow-md shadow-rose-900 animate-pulse border border-rose-400 w-fit">
+                                  ⚠️ INCOBRABLE (BLOQUEADO)
+                                </span>
+                              )}
+                              {hasRefinancedLoan && !hasBadDebtLoan && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800 w-fit">
+                                  Refinanciado
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="p-4 text-neutral-300">{client.phone}</td>

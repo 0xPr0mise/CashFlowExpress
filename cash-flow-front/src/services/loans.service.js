@@ -56,3 +56,21 @@ export const updateLoan = async (id, data) => {
   if (!response.ok) throw new Error("Error al actualizar el préstamo");
   return response.json();
 };
+
+export const markLoanAsBadDebt = async (id) => {
+  // Ajusta la URL base según cómo tengas configurado el fetch en las demás funciones de este archivo
+  const response = await fetch(`${API_URL}/loans/${id}/bad-debt`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      // Si usas token de autenticación, agrégalo aquí, por ejemplo:
+      // "Authorization": `Bearer ${localStorage.getItem("token")}`
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("No se pudo marcar el préstamo como incobrable");
+  }
+
+  return response.json();
+};

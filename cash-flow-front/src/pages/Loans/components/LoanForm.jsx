@@ -9,6 +9,7 @@ export default function LoanForm({
   isOpen, 
   onClose, 
   clients, 
+  loans = [], // Lista de préstamos para validar antecedentes
   onLoanCreated, 
   defaultInterestRate = 20,
   initialData = null 
@@ -32,8 +33,6 @@ export default function LoanForm({
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [calculatedDetails, setCalculatedDetails] = useState(null);
   const [successLoanData, setSuccessLoanData] = useState(null);
-
-  const todayFormatted = new Date().toISOString().split('T')[0];
 
   // Sincronizar tasa por defecto si no hay datos iniciales
   useEffect(() => {
@@ -90,6 +89,16 @@ export default function LoanForm({
 
   if (!isOpen) return null;
 
+  // 1️⃣ Primero validamos de entrada si tiene préstamo INCOBRABLE (Bloqueante)
+  const selectedClientHasBadDebt = form.clientId 
+    ? loans.some((loan) => loan.clientId === form.clientId && loan.status === "INCOBRABLE")
+    : false;
+
+  // 2️⃣ Luego validamos si tiene préstamo REFINANCIADO (Informativo / Permitido avanzar)
+  const selectedClientHasRefinanced = form.clientId 
+    ? loans.some((loan) => loan.clientId === form.clientId && loan.status === "REFINANCIADO")
+    : false;
+
   const formatThousands = (value) => {
     if (!value && value !== 0) return "";
     const cleanValue = String(value).replace(/\D/g, "");
@@ -127,6 +136,20 @@ export default function LoanForm({
       return;
     }
 
+    // 🛑 BLOQUEO ESTRICTO SOLO PARA INCOBRABLES
+    if (selectedClientHasBadDebt) {
+      Swal.fire({
+        icon: "error",
+        title: "¡CRÉDITO DENEGADO!",
+        text: "Este cliente posee antecedentes de préstamos INCOBRABLES. No se le puede otorgar ningún crédito.",
+        background: "#171717",
+        color: "#ffffff",
+        confirmButtonColor: "#dc2626",
+        customClass: { popup: "border-2 border-rose-600 rounded-2xl shadow-2xl shadow-rose-950" }
+      });
+      return; 
+    }
+
     const details = calculateLoanDetails(form, clients, defaultInterestRate);
     setCalculatedDetails(details);
     setShowPreviewModal(true);
@@ -155,7 +178,6 @@ export default function LoanForm({
 
     if (!result.isConfirmed) return;
 
-    // 🚀 Enviamos las propiedades clave para que el back sepa manejar la refinanciación
     onLoanCreated({
       clientId: calculatedDetails.clientId,
       amount: calculatedDetails.amount,
@@ -225,9 +247,33 @@ export default function LoanForm({
                 >
                   <option value="" className="text-neutral-500">Seleccione un Cliente</option>
                   {clients.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name} {c.dni ? `(DNI: ${c.dni})` : ""}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.dni ? `(DNI: ${c.dni})` : ""}
+                    </option>
                   ))}
                 </select>
+
+                {/* ⚠️ ALERTA TAMAÑO CAÑON PARA INCOBRABLES (BLOQUEANTE) */}
+                {selectedClientHasBadDebt && (
+                  <div className="mt-3 p-3.5 rounded-xl bg-rose-950/80 border-2 border-rose-600 text-rose-200 text-xs font-bold flex items-center gap-3 animate-pulse shadow-lg shadow-rose-950">
+                    <span className="text-xl">🚨</span>
+                    <div>
+                      <p className="font-black text-white text-sm uppercase tracking-wide">¡CLIENTE BLOQUEADO POR ANTECEDENTES!</p>
+                      <p className="text-rose-300 font-normal mt-0.5">Este usuario posee un préstamo marcado como <strong className="text-white underline">INCOBRABLE</strong>. El sistema denegará cualquier intento de otorgarle un nuevo crédito.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ℹ️ AVISO INFORMATIVO PARA REFINANCIADOS (PERMITE AVANZAR) */}
+                {!selectedClientHasBadDebt && selectedClientHasRefinanced && (
+                  <div className="mt-3 p-3.5 rounded-xl bg-purple-950/60 border border-purple-600 text-purple-200 text-xs font-medium flex items-center gap-3 shadow-lg">
+                    <span className="text-xl">🟣</span>
+                    <div>
+                      <p className="font-bold text-white text-xs uppercase tracking-wide">Aviso de Refinanciación previa</p>
+                      <p className="text-purple-300 font-normal mt-0.5">Este cliente cuenta con antecedentes refinanciados, pero el sistema permite continuar con la operación.</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Monto */}
@@ -330,7 +376,6 @@ export default function LoanForm({
                 />
               </div>
 
-              {/* Componente Modular de Opciones de Cálculo Avanzado */}
               <LoanCalculationOptions
                 form={form}
                 onChange={handleChange}
@@ -350,9 +395,14 @@ export default function LoanForm({
               </button>
               <button
                 type="submit"
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-red-950/50 cursor-pointer"
+                disabled={selectedClientHasBadDebt}
+                className={`font-semibold px-6 py-2.5 rounded-xl text-sm shadow-lg transition-all ${
+                  selectedClientHasBadDebt 
+                    ? "bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50 shadow-none border border-neutral-700" 
+                    : "bg-red-600 hover:bg-red-700 text-white shadow-red-950/50 cursor-pointer"
+                }`}
               >
-                Previsualizar Préstamo
+                {selectedClientHasBadDebt ? "Cliente Bloqueado ❌" : "Previsualizar Préstamo"}
               </button>
             </div>
           </form>

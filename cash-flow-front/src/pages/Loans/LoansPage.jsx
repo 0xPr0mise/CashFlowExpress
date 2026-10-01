@@ -57,7 +57,7 @@ export default function LoansPage() {
             ? loan.payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0)
             : 0;
 
-          const calculatedPending = loan.status === "REFINANCIADO" || loan.status === "PAGADO" 
+          const calculatedPending = loan.status === "REFINANCIADO" || loan.status === "PAGADO" || loan.status === "INCOBRABLE"
             ? 0 
             : Math.max(0, totalToPay - totalPaidSoFar);
 
@@ -66,7 +66,7 @@ export default function LoansPage() {
             dueDate: loan.dueDate || loan.due_date,
             totalToPay,
             pendingAmount: calculatedPending,
-            schedule: loan.status === "REFINANCIADO" ? [] : (loan.schedule || loan.installmentsList || loan.installments_list || []),
+            schedule: (loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE") ? [] : (loan.schedule || loan.installmentsList || loan.installments_list || []),
           };
         });
         setLoans(normalizedLoans);
@@ -173,7 +173,7 @@ export default function LoansPage() {
   };
 
   const hasUpcomingExpirations = (loan) => {
-    if (loan.status === "REFINANCIADO" || loan.status === "PAGADO") return false;
+    if (loan.status === "REFINANCIADO" || loan.status === "PAGADO" || loan.status === "INCOBRABLE") return false;
     let schedule = [];
     try {
       schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
@@ -203,7 +203,7 @@ export default function LoansPage() {
     today.setHours(0, 0, 0, 0);
 
     loans.forEach((loan) => {
-      if (loan.status === "REFINANCIADO" || loan.status === "PAGADO") return;
+      if (loan.status === "REFINANCIADO" || loan.status === "PAGADO" || loan.status === "INCOBRABLE") return;
       let schedule = [];
       try {
         schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
@@ -233,7 +233,7 @@ export default function LoansPage() {
   const totalLoanedAmount = loans.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   
   const totalPendingAmount = loans.reduce((acc, curr) => {
-    if (curr.status === "REFINANCIADO" || curr.status === "PAGADO") return acc;
+    if (curr.status === "REFINANCIADO" || curr.status === "PAGADO" || curr.status === "INCOBRABLE") return acc;
     return acc + (curr.pendingAmount || 0);
   }, 0);
 
@@ -243,7 +243,7 @@ export default function LoansPage() {
     today.setHours(0, 0, 0, 0);
 
     loans.forEach((loan) => {
-      if (loan.status === "REFINANCIADO" || loan.status === "PAGADO") return;
+      if (loan.status === "REFINANCIADO" || loan.status === "PAGADO" || loan.status === "INCOBRABLE") return;
       let schedule = [];
       try {
         schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
@@ -428,6 +428,7 @@ export default function LoansPage() {
             setCurrentOldLoanId(null);
           }}
           clients={clients}
+          loans={loans} // 👈 Pasamos la lista de préstamos para que el formulario valide antecedentes incobrables
           onLoanCreated={handleCreateLoan}
           defaultInterestRate={defaultInterest}
           loading={loading}

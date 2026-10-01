@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PaymentModal from "../../../components/loans/PaymentModal";
+import { markLoanAsBadDebt } from "../../../services/loans.service"; // 👈 Importamos el servicio para marcar incobrable
 import Swal from "sweetalert2";
 
 export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefinanceLoan, onSelectLoanForHistory }) {
@@ -24,7 +25,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
   };
 
   const getNextDueDateObject = (loan) => {
-    if (loan.status === "PAGADO" || loan.status === "REFINANCIADO") return null;
+    if (loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE") return null;
 
     let schedule = loan.schedule;
     if (typeof schedule === "string") {
@@ -54,12 +55,13 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
   const getNextDueDateFormatted = (loan) => {
     if (loan.status === "PAGADO") return "Completado";
     if (loan.status === "REFINANCIADO") return "Refinanciado";
+    if (loan.status === "INCOBRABLE") return "Incobrable";
     const rawDate = getNextDueDateObject(loan);
     return rawDate ? formatDateToLocal(rawDate) : "N/A";
   };
 
   const isLoanOverdue = (loan) => {
-    if (loan.status === "PAGADO" || loan.status === "REFINANCIADO") return false;
+    if (loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE") return false;
     const dueDateStr = getNextDueDateObject(loan);
     if (!dueDateStr) return false;
 
@@ -68,6 +70,64 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
 
     const dueDate = new Date(dueDateStr + "T00:00:00");
     return dueDate < today;
+  };
+
+  // Función para manejar el clic en "Marcar como Incobrable"
+  const handleBadDebtClick = async (loan) => {
+    const result = await Swal.fire({
+      title: "¿Marcar como Préstamo Incobrable?",
+      html: `
+        <div class="text-left text-sm space-y-2 text-neutral-300">
+          <p>Esta acción:</p>
+          <ul class="list-disc pl-5 space-y-1 text-neutral-400">
+            <li>Cambiará el estado del préstamo a <strong class="text-rose-500">INCOBRABLE</strong>.</li>
+            <li>Removerá las fechas de vencimiento pendientes.</li>
+            <li>Bloqueará automáticamente a este cliente para futuros préstamos.</li>
+          </ul>
+        </div>
+      `,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, marcar como incobrable",
+      cancelButtonText: "Cancelar",
+      background: "#171717",
+      color: "#ffffff",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#404040",
+      customClass: { popup: "border border-neutral-800 rounded-2xl shadow-2xl" }
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setLoadingId(loan.id);
+      await markLoanAsBadDebt(loan.id);
+
+      Swal.fire({
+        icon: "success",
+        title: "Actualizado",
+        text: "El préstamo ha sido marcado como incobrable.",
+        background: "#171717",
+        color: "#ffffff",
+        confirmButtonColor: "#10b981",
+      });
+
+      if (onLoanUpdated) {
+        onLoanUpdated();
+      }
+    } catch (error) {
+      console.error("Error al marcar como incobrable:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo actualizar el estado del préstamo.",
+        background: "#171717",
+        color: "#ffffff",
+        confirmButtonColor: "#dc2626",
+      });
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const handleRefinanceClick = async (loan) => {
@@ -160,10 +220,10 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
               const totalPaidSoFar = Array.isArray(loan.payments)
                 ? loan.payments.reduce((acc, p) => acc + (p.amount || 0), 0)
                 : (loan.paidAmount || 0);
-              const pendingAmount = loan.status === "PAGADO" || loan.status === "REFINANCIADO"
+              const pendingAmount = loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE"
                 ? 0 
                 : Math.max(0, totalToPay - totalPaidSoFar);
-              const isClosed = loan.status === "PAGADO" || loan.status === "REFINANCIADO";
+              const isClosed = loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE";
               const overdue = isLoanOverdue(loan);
 
               return (
@@ -192,6 +252,8 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                           ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
                           : loan.status === "REFINANCIADO"
                           ? "bg-purple-950/40 text-purple-400 border-purple-900/40"
+                          : loan.status === "INCOBRABLE"
+                          ? "bg-rose-950/80 text-rose-300 border-rose-800"
                           : overdue
                           ? "bg-rose-950/60 text-rose-400 border-rose-900/60 animate-pulse"
                           : "bg-amber-950/40 text-amber-400 border-amber-900/40"
@@ -244,14 +306,24 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                         >
                           {loadingId === loan.id ? "..." : "🔄 Refinanciar"}
                         </button>
+
+                        {/* Botón de Incobrable (Móvil) */}
+                        <button
+                          type="button"
+                          onClick={() => handleBadDebtClick(loan)}
+                          disabled={loadingId === loan.id}
+                          className="w-full bg-neutral-800 hover:bg-rose-950/60 text-rose-400 border border-neutral-700 hover:border-rose-900 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                          title="Marcar como incobrable"
+                        >
+                          ⚠️ Marcar como Incobrable
+                        </button>
                       </>
                     )}
 
-                    {/* Botón Historial (Móvil) vinculado correctamente */}
                     <button
                       type="button"
                       onClick={() => onSelectLoanForHistory && onSelectLoanForHistory(loan)}
-                      className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1"
+                      className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1"
                       title="Ver historial y tickets"
                     >
                       📋 Historial
@@ -260,7 +332,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                     <button
                       type="button"
                       onClick={() => onDeleteLoan(loan.id)}
-                      className={`${isClosed ? "w-full" : "w-auto"} bg-neutral-800 hover:bg-red-950/60 text-red-400 border border-neutral-700 hover:border-red-900 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer`}
+                      className="bg-neutral-800 hover:bg-red-950/60 text-red-400 border border-neutral-700 hover:border-red-900 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                     >
                       Eliminar
                     </button>
@@ -291,10 +363,10 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                   const totalPaidSoFar = Array.isArray(loan.payments)
                     ? loan.payments.reduce((acc, p) => acc + (p.amount || 0), 0)
                     : (loan.paidAmount || 0);
-                  const pendingAmount = loan.status === "PAGADO" || loan.status === "REFINANCIADO"
+                  const pendingAmount = loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE"
                     ? 0 
                     : Math.max(0, totalToPay - totalPaidSoFar);
-                  const isClosed = loan.status === "PAGADO" || loan.status === "REFINANCIADO";
+                  const isClosed = loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE";
                   const overdue = isLoanOverdue(loan);
 
                   return (
@@ -331,6 +403,8 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                               ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
                               : loan.status === "REFINANCIADO"
                               ? "bg-purple-950/40 text-purple-400 border-purple-900/40"
+                              : loan.status === "INCOBRABLE"
+                              ? "bg-rose-950/80 text-rose-300 border-rose-800"
                               : overdue
                               ? "bg-rose-950/60 text-rose-400 border-rose-900/60 animate-pulse"
                               : "bg-amber-950/40 text-amber-400 border-amber-900/40"
@@ -360,10 +434,20 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                               >
                                 {loadingId === loan.id ? "..." : "🔄 Refinanciar"}
                               </button>
+
+                              {/* Botón de Incobrable (Escritorio) */}
+                              <button
+                                type="button"
+                                onClick={() => handleBadDebtClick(loan)}
+                                disabled={loadingId === loan.id}
+                                className="bg-neutral-800 hover:bg-rose-950/60 text-rose-400 border border-neutral-700 hover:border-rose-900 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                                title="Marcar como incobrable"
+                              >
+                                ⚠️ Incobrable
+                              </button>
                             </>
                           )}
 
-                          {/* Botón Historial (Escritorio) vinculado correctamente */}
                           <button
                             type="button"
                             onClick={() => onSelectLoanForHistory && onSelectLoanForHistory(loan)}
