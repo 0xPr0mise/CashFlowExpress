@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import PaymentModal from "../../../components/loans/PaymentModal";
+import LoanReminderButton from "../../../components/loans/LoanReminderButton"; // 👈 Importamos el nuevo componente
 import { markLoanAsBadDebt } from "../../../services/loans.service";
 import Swal from "sweetalert2";
 
@@ -301,13 +302,21 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                   {/* Acciones móviles */}
                   <div className="flex items-center gap-2 pt-1 relative">
                     {!isClosed && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedLoanForPayment(loan)}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
-                      >
-                        Pagar 💵
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLoanForPayment(loan)}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
+                        >
+                          Pagar 💵
+                        </button>
+
+                        <LoanReminderButton 
+                          loan={loan} 
+                          getNextDueDateFormatted={getNextDueDateFormatted} 
+                          isOverdue={overdue}
+                        />
+                      </>
                     )}
 
                     {/* Botonera Desplegable Móvil */}
@@ -447,13 +456,21 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center items-center">
                           {!isClosed && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedLoanForPayment(loan)}
-                              className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
-                            >
-                              Pagar 💵
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedLoanForPayment(loan)}
+                                className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white border border-emerald-500 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
+                              >
+                                Pagar 💵
+                              </button>
+
+                              <LoanReminderButton 
+                                loan={loan} 
+                                getNextDueDateFormatted={getNextDueDateFormatted} 
+                                isOverdue={overdue}
+                              />
+                            </>
                           )}
 
                           {/* Botonera Desplegable Escritorio */}
@@ -485,7 +502,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                                       disabled={loadingId === loan.id}
                                       className="w-full px-4 py-2 text-xs text-rose-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
                                     >
-                                      <span>⚠️</span> Incobrable
+                                      <span>⚠️️</span> Incobrable
                                     </button>
                                   </>
                                 )}
