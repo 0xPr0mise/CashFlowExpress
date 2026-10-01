@@ -143,7 +143,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
     }
   };
 
-  // Ordenar los préstamos filtrados por el vencimiento más próximo primero
+  // Ordenar los préstamos por el vencimiento más próximo primero
   const sortedLoans = [...loans].sort((a, b) => {
     const dateA = getNextDueDateObject(a);
     const dateB = getNextDueDateObject(b);

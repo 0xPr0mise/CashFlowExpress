@@ -12,17 +12,18 @@ export default function LoansPage() {
   const [defaultInterest, setDefaultInterest] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
   
+  // Estado para el filtro desplegable superior ("ACTIVO", "REFINANCIADO", "PAGADO", "TODOS")
   const [filterStatus, setFilterStatus] = useState("ACTIVO");
-  const [loading, setLoading] = useState(false);
   
+  // Estado booleano para activar/desactivar el filtro rápido por el botón exterior
+  const [showOnlyUpcoming, setShowOnlyUpcoming] = useState(false);
+  
+  const [loading, setLoading] = useState(false);
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [isExpirationsModalOpen, setIsExpirationsModalOpen] = useState(false);
   const [refinanceInitialData, setRefinanceInitialData] = useState(null);
-
-  // Estado para capturar y mantener el ID del préstamo anterior al refinanciar
   const [currentOldLoanId, setCurrentOldLoanId] = useState(null);
 
-  // Función auxiliar de formateo de dinero (enteros con puntos en millares, sin decimales)
   const formatMoney = (amount) => {
     const rounded = Math.round(amount || 0);
     return rounded.toLocaleString("es-AR", {
@@ -84,15 +85,11 @@ export default function LoansPage() {
         days: Number(loanData.days),
         schedule: loanData.schedule,
         paymentMethod: loanData.paymentMethod,
-        
-        // Banderas inyectadas para evitar que se genere egreso en caja si es refinanciación
         isRefinancing: Boolean(currentOldLoanId || loanData.oldLoanId),
         oldLoanId: currentOldLoanId || loanData.oldLoanId || null,
       };
 
       await createLoan(cleanLoanData);
-      
-      // Limpieza de estados de refinanciación
       setRefinanceInitialData(null); 
       setCurrentOldLoanId(null);
       setIsLoanModalOpen(false);
@@ -121,11 +118,8 @@ export default function LoansPage() {
     try {
       setLoading(true);
       const oldLoanId = refinancePayload.oldLoanId;
-
-      // Guardamos el ID en el estado para enviarlo al crear el nuevo préstamo
       setCurrentOldLoanId(oldLoanId);
 
-      // (Opcional) Si quieres actualizar el estado del viejo de inmediato en la API o dejar que el backend lo haga al crear el nuevo:
       if (oldLoanId) {
         await updateLoan(oldLoanId, {
           status: "REFINANCIADO",
@@ -151,6 +145,32 @@ export default function LoansPage() {
     }
   };
 
+  // Función auxiliar para verificar vencimientos a 7 días
+  const hasUpcomingExpirations = (loan) => {
+    if (loan.status === "REFINANCIADO" || loan.status === "PAGADO") return false;
+    let schedule = [];
+    try {
+      schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
+    } catch (e) {
+      schedule = [];
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return schedule.some((inst) => {
+      if (inst.status !== "PAGADO" && inst.dueDate) {
+        const cleanDate = inst.dueDate.split("T")[0];
+        const [year, month, day] = cleanDate.split("-");
+        const dueDate = new Date(year, month - 1, day);
+        const diffTime = dueDate - today;
+        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return daysLeft <= 7;
+      }
+      return false;
+    });
+  };
+
   const urgentCount = useMemo(() => {
     let count = 0;
     const today = new Date();
@@ -173,7 +193,7 @@ export default function LoansPage() {
           const diffTime = dueDate - today;
           const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-          if (daysLeft <= 2) {
+          if (daysLeft <= 7) {
             count++;
           }
         }
@@ -186,6 +206,7 @@ export default function LoansPage() {
   const activeLoansCount = loans.filter((l) => l.status === "ACTIVO" || !l.status).length;
   const totalPortfolioValue = loans.reduce((acc, curr) => acc + (curr.status === "REFINANCIADO" ? 0 : (curr.totalToPay || curr.amount || 0)), 0);
 
+  // Filtrado combinando buscador, select y el botón exterior
   const filteredLoans = loans.filter((loan) => {
     const clientName = loan.client?.name || loan.clientName || "";
     const matchesSearch =
@@ -194,35 +215,32 @@ export default function LoansPage() {
 
     if (!matchesSearch) return false;
 
-    if (filterStatus === "TODOS") return true;
-    if (filterStatus === "ACTIVO") return loan.status === "ACTIVO" || !loan.status;
-    if (filterStatus === "PAGADO") return loan.status === "PAGADO";
-    
-    if (filterStatus === "PROXIMO_VENCER") {
-      if (loan.status === "PAGADO" || loan.status === "REFINANCIADO") return false;
-      let schedule = [];
-      try {
-        schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
-      } catch (e) {
-        schedule = [];
-      }
-
-      const todayStr = new Date().toISOString().split("T")[0];
-      const todayObj = new Date(todayStr);
-
-      const hasUpcoming = schedule.some((inst) => {
-        if (inst.status === "PAGADO" || !inst.dueDate) return false;
-        const rawDate = inst.dueDate.split("T")[0];
-        const dueDateObj = new Date(rawDate);
-        const diffDays = Math.ceil((dueDateObj - todayObj) / (1000 * 60 * 60 * 24));
-        return diffDays <= 7;
-      });
-
-      return hasUpcoming;
+    if (showOnlyUpcoming) {
+      return hasUpcomingExpirations(loan);
     }
+
+    const loanStatus = (loan.status || "ACTIVO").toUpperCase();
+    if (filterStatus === "TODOS") return true;
+    if (filterStatus === "ACTIVO") return loanStatus === "ACTIVO";
+    if (filterStatus === "REFINANCIADO") return loanStatus === "REFINANCIADO";
+    if (filterStatus === "PAGADO") return loanStatus === "PAGADO";
 
     return true;
   });
+
+  const getSelectStyle = (status) => {
+    if (showOnlyUpcoming) return "border-neutral-700 text-neutral-500 bg-neutral-900 opacity-50 cursor-not-allowed";
+    switch (status) {
+      case "ACTIVO":
+        return "border-amber-500/50 text-amber-400 bg-amber-950/20 focus:border-amber-500";
+      case "REFINANCIADO":
+        return "border-purple-500/50 text-purple-400 bg-purple-950/20 focus:border-purple-500";
+      case "PAGADO":
+        return "border-emerald-500/50 text-emerald-400 bg-emerald-950/20 focus:border-emerald-500";
+      default:
+        return "border-neutral-700 text-white bg-neutral-900 focus:border-neutral-500";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans">
@@ -240,6 +258,7 @@ export default function LoansPage() {
           </div>
           
           <div className="flex items-center gap-3">
+            {/* Campana original intacta */}
             <div className="relative">
               <button
                 type="button"
@@ -326,65 +345,72 @@ export default function LoansPage() {
         />
 
         <div className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <h3 className="text-lg font-bold text-white">
-              Préstamos Registrados
-            </h3>
+          {/* Barra de Filtros Superior Estilizada */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-neutral-900/40 p-4 rounded-2xl border border-neutral-800/80 backdrop-blur-sm">
+            
+            {/* Lado izquierdo: Título y el BOTÓN POR FUERA para próximos vencimientos */}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                  </svg>
+                  Préstamos Registrados
+                </h3>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700">
+                  {filteredLoans.length}
+                </span>
+              </div>
 
+              {/* Botón totalmente por fuera y a la izquierda */}
+              <button
+                type="button"
+                onClick={() => setShowOnlyUpcoming(!showOnlyUpcoming)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer border ${
+                  showOnlyUpcoming
+                    ? "bg-rose-600 text-white border-rose-500 shadow-rose-950/50"
+                    : "bg-neutral-900 hover:bg-neutral-800 text-rose-400 border-neutral-700 hover:border-neutral-600"
+                }`}
+                title="Filtrar préstamos con vencimientos en los próximos 7 días"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>Próx. Vencimientos (7 días)</span>
+              </button>
+            </div>
+
+            {/* Lado derecho: Buscador + Select de Estado tradicional */}
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              <div className="w-full sm:w-56">
+              <div className="w-full sm:w-52 relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-500">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                </span>
                 <input
                   type="text"
-                  placeholder="Buscar por cliente..."
+                  placeholder="Buscar cliente..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-500"
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-9 pr-3.5 py-2 text-xs text-white focus:outline-none focus:border-neutral-600 transition-colors placeholder:text-neutral-500 shadow-inner"
                 />
               </div>
 
-              <div className="flex items-center gap-1 bg-neutral-900/80 p-1 border border-neutral-800 rounded-xl w-full sm:w-auto overflow-x-auto">
-                <button
-                  onClick={() => setFilterStatus("ACTIVO")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    filterStatus === "ACTIVO"
-                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/50"
-                      : "text-neutral-400 hover:text-white"
-                  }`}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <select
+                  value={filterStatus}
+                  disabled={showOnlyUpcoming}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className={`w-full sm:w-auto border text-xs rounded-xl px-3.5 py-2 outline-none transition-all cursor-pointer font-bold shadow-md ${getSelectStyle(filterStatus)}`}
                 >
-                  Activos
-                </button>
-                <button
-                  onClick={() => setFilterStatus("PROXIMO_VENCER")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    filterStatus === "PROXIMO_VENCER"
-                      ? "bg-amber-600 text-white shadow-md shadow-amber-950/50"
-                      : "text-amber-400 hover:text-white"
-                  }`}
-                  title="Filtrar préstamos próximos a vencer o vencidos"
-                >
-                  🔔 Próximos
-                </button>
-                <button
-                  onClick={() => setFilterStatus("TODOS")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    filterStatus === "TODOS"
-                      ? "bg-red-600 text-white shadow-md shadow-red-950/50"
-                      : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  Todos
-                </button>
-                <button
-                  onClick={() => setFilterStatus("PAGADO")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    filterStatus === "PAGADO"
-                      ? "bg-red-600 text-white shadow-md shadow-red-950/50"
-                      : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  Pagados
-                </button>
+                  <option value="ACTIVO" className="bg-neutral-900 text-amber-400">🟡 Activos</option>
+                  <option value="REFINANCIADO" className="bg-neutral-900 text-purple-400">🟣 Refinanciados</option>
+                  <option value="PAGADO" className="bg-neutral-900 text-emerald-400">🟢 Pagados</option>
+                  <option value="TODOS" className="bg-neutral-900 text-white">⚪ Todos</option>
+                </select>
               </div>
+
             </div>
           </div>
 
