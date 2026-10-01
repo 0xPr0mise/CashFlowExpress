@@ -101,6 +101,7 @@ export default function CashForm({ form, setForm, onSubmit, loading }) {
                       {form.type === "INGRESO" ? (
                         <>
                           <option value="APORTE_CAPITAL">Aporte de Capital</option>
+                          <option value="CONCILIACION_CAJA">Conciliación de Caja</option>
                           <option value="INGRESO_EXTRA">Ingreso Extraordinario</option>
                         </>
                       ) : (
