@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import PaymentModal from "../../../components/loans/PaymentModal";
-import LoanReminderButton from "../../../components/loans/LoanReminderButton"; // 👈 Importamos el nuevo componente
+import LoanReminderButton from "../../../components/loans/LoanReminderButton";
 import { markLoanAsBadDebt } from "../../../services/loans.service";
 import Swal from "sweetalert2";
 
@@ -85,6 +85,22 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
 
     const dueDate = new Date(dueDateStr + "T00:00:00");
     return dueDate < today;
+  };
+
+  // 🕒 Valida si faltan 3 días o menos para el vencimiento, o si ya está vencido
+  const isWithinThreeDaysOrOverdue = (loan) => {
+    if (loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE") return false;
+    const dueDateStr = getNextDueDateObject(loan);
+    if (!dueDateStr) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate = new Date(dueDateStr + "T00:00:00");
+    const diffTime = dueDate - today;
+    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return daysLeft <= 3;
   };
 
   const handleBadDebtClick = async (loan) => {
@@ -237,6 +253,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                 : Math.max(0, totalToPay - totalPaidSoFar);
               const isClosed = loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE";
               const overdue = isLoanOverdue(loan);
+              const showReminder = isWithinThreeDaysOrOverdue(loan);
 
               return (
                 <div
@@ -311,16 +328,18 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                           Pagar 💵
                         </button>
 
-                        <LoanReminderButton 
-                          loan={loan} 
-                          getNextDueDateFormatted={getNextDueDateFormatted} 
-                          isOverdue={overdue}
-                        />
+                        {showReminder && (
+                          <LoanReminderButton 
+                            loan={loan} 
+                            getNextDueDateFormatted={getNextDueDateFormatted} 
+                            isOverdue={overdue}
+                          />
+                        )}
                       </>
                     )}
 
                     {/* Botonera Desplegable Móvil */}
-                    <div className={`relative ${isClosed ? "w-full" : "flex-1"}`}>
+                    <div className={`relative ${isClosed || !showReminder ? "w-full" : "flex-1"}`}>
                       <button
                         type="button"
                         onClick={() => setActiveDropdownId(activeDropdownId === loan.id ? null : loan.id)}
@@ -407,6 +426,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                     : Math.max(0, totalToPay - totalPaidSoFar);
                   const isClosed = loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE";
                   const overdue = isLoanOverdue(loan);
+                  const showReminder = isWithinThreeDaysOrOverdue(loan);
 
                   return (
                     <tr
@@ -465,11 +485,13 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                                 Pagar 💵
                               </button>
 
-                              <LoanReminderButton 
-                                loan={loan} 
-                                getNextDueDateFormatted={getNextDueDateFormatted} 
-                                isOverdue={overdue}
-                              />
+                              {showReminder && (
+                                <LoanReminderButton 
+                                  loan={loan} 
+                                  getNextDueDateFormatted={getNextDueDateFormatted} 
+                                  isOverdue={overdue}
+                                />
+                              )}
                             </>
                           )}
 
@@ -502,7 +524,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                                       disabled={loadingId === loan.id}
                                       className="w-full px-4 py-2 text-xs text-rose-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
                                     >
-                                      <span>⚠️️</span> Incobrable
+                                      <span>⚠️</span> Incobrable
                                     </button>
                                   </>
                                 )}
