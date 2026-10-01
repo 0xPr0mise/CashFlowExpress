@@ -4,10 +4,14 @@ export class CreateLoanDto {
   amount: number;
   installments: number;
   frequency: string;
-  interestRate: number; // 
+  interestRate: number; 
   dueDate: string;      
   totalToPay: number;
   days: number;         
   schedule?: any;
-  paymentMethod?: string;       
+  paymentMethod?: string;
+  
+  // Propiedades opcionales para la lógica de refinanciación
+  isRefinancing?: boolean;
+  oldLoanId?: string;
 }

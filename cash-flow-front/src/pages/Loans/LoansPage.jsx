@@ -19,6 +19,9 @@ export default function LoansPage() {
   const [isExpirationsModalOpen, setIsExpirationsModalOpen] = useState(false);
   const [refinanceInitialData, setRefinanceInitialData] = useState(null);
 
+  // Estado para capturar y mantener el ID del préstamo anterior al refinanciar
+  const [currentOldLoanId, setCurrentOldLoanId] = useState(null);
+
   // Función auxiliar de formateo de dinero (enteros con puntos en millares, sin decimales)
   const formatMoney = (amount) => {
     const rounded = Math.round(amount || 0);
@@ -81,10 +84,17 @@ export default function LoansPage() {
         days: Number(loanData.days),
         schedule: loanData.schedule,
         paymentMethod: loanData.paymentMethod,
+        
+        // Banderas inyectadas para evitar que se genere egreso en caja si es refinanciación
+        isRefinancing: Boolean(currentOldLoanId || loanData.oldLoanId),
+        oldLoanId: currentOldLoanId || loanData.oldLoanId || null,
       };
 
       await createLoan(cleanLoanData);
+      
+      // Limpieza de estados de refinanciación
       setRefinanceInitialData(null); 
+      setCurrentOldLoanId(null);
       setIsLoanModalOpen(false);
       await loadData();
     } catch (error) {
@@ -112,6 +122,10 @@ export default function LoansPage() {
       setLoading(true);
       const oldLoanId = refinancePayload.oldLoanId;
 
+      // Guardamos el ID en el estado para enviarlo al crear el nuevo préstamo
+      setCurrentOldLoanId(oldLoanId);
+
+      // (Opcional) Si quieres actualizar el estado del viejo de inmediato en la API o dejar que el backend lo haga al crear el nuevo:
       if (oldLoanId) {
         await updateLoan(oldLoanId, {
           status: "REFINANCIADO",
@@ -124,6 +138,7 @@ export default function LoansPage() {
         clientId: refinancePayload.clientId,
         amount: String(refinancePayload.amount),
         interestRate: refinancePayload.interestRate ? String(refinancePayload.interestRate) : String(defaultInterest),
+        oldLoanId: oldLoanId,
       });
 
       setIsLoanModalOpen(true);
@@ -247,6 +262,7 @@ export default function LoansPage() {
             <button
               onClick={() => {
                 setRefinanceInitialData(null);
+                setCurrentOldLoanId(null);
                 setIsLoanModalOpen(true);
               }}
               className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer flex items-center gap-2"
@@ -294,6 +310,7 @@ export default function LoansPage() {
           onClose={() => {
             setIsLoanModalOpen(false);
             setRefinanceInitialData(null);
+            setCurrentOldLoanId(null);
           }}
           clients={clients}
           onLoanCreated={handleCreateLoan}

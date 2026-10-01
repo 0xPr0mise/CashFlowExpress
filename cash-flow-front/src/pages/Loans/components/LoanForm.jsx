@@ -135,9 +135,13 @@ export default function LoanForm({
   const handleConfirmLoan = async () => {
     if (!calculatedDetails) return;
 
+    const isRefinancing = !!initialData;
+
     const result = await Swal.fire({
       title: "¿Estás seguro?",
-      text: `Se va a otorgar y registrar este préstamo por ${calculatedDetails.paymentMethod}.`,
+      text: isRefinancing 
+        ? "Se va a registrar la refinanciación del préstamo sin afectar la caja operativa."
+        : `Se va a otorgar y registrar este préstamo por ${calculatedDetails.paymentMethod}.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Sí, otorgar",
@@ -151,6 +155,7 @@ export default function LoanForm({
 
     if (!result.isConfirmed) return;
 
+    // 🚀 Enviamos las propiedades clave para que el back sepa manejar la refinanciación
     onLoanCreated({
       clientId: calculatedDetails.clientId,
       amount: calculatedDetails.amount,
@@ -163,6 +168,8 @@ export default function LoanForm({
       days: calculatedDetails.daysDiff,
       schedule: calculatedDetails.schedule,
       notes: form.notes || "",
+      isRefinancing: isRefinancing,
+      oldLoanId: initialData?.id || null, 
     });
 
     setSuccessLoanData(calculatedDetails);

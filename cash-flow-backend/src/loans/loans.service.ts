@@ -7,15 +7,24 @@ export class LoansService {
   constructor(private prisma: PrismaService) {}
 
   async create(createLoanDto: CreateLoanDto) {
-    // Extraemos paymentMethod del DTO (por defecto EFECTIVO si no viene)
-    const { clientId, dueDate, schedule, amount, paymentMethod = 'EFECTIVO', ...restData } = createLoanDto;
+    // Extraemos las banderas de refinanciación y los datos habituales del DTO
+    const { 
+      clientId, 
+      dueDate, 
+      schedule, 
+      amount, 
+      paymentMethod = 'EFECTIVO', 
+      isRefinancing, 
+      oldLoanId, 
+      ...restData 
+    } = createLoanDto as any;
 
-    // 1. Creamos el préstamo en la base de datos
+    // 1. Creamos el nuevo préstamo en la base de datos
     const loan = await this.prisma.loan.create({
       data: {
         ...restData,
         amount,
-        paymentMethod, // <--- Guardamos el método de pago en el préstamo
+        paymentMethod,
         dueDate: dueDate ? new Date(dueDate) : null,
         schedule: schedule ? JSON.stringify(schedule) : null,
         client: {
@@ -28,14 +37,26 @@ export class LoansService {
       },
     });
 
-    // 2. Registramos automáticamente el EGRESO en la caja vinculado al préstamo y su método
+    // 2. 🛡️ LÓGICA DE REFINANCIACIÓN: Si es una refinanciación, actualizamos el viejo y evitamos tocar la caja
+    if (isRefinancing) {
+      if (oldLoanId) {
+        await this.prisma.loan.update({
+          where: { id: oldLoanId },
+          data: { status: 'REFINANCIADO' },
+        });
+      }
+      // Retornamos directamente sin registrar egreso en caja (porque no hubo entrega de dinero físico)
+      return loan;
+    }
+
+    // 3. Si NO es refinanciación (préstamo nuevo común), registramos automáticamente el EGRESO en la caja
     await this.prisma.cashMovement.create({
       data: {
         type: 'EGRESO',
         category: 'PRESTAMO_OTORGADO',
         amount: Number(amount),
-        paymentMethod: paymentMethod, // <--- Método de pago real (Efectivo, Transferencia, etc.)
-        loanId: loan.id,              // <--- Vínculo directo al préstamo
+        paymentMethod: paymentMethod,
+        loanId: loan.id,
         description: `Desembolso de préstamo - ID: ${loan.id.slice(-6)}`,
       },
     });
@@ -164,8 +185,8 @@ export class LoansService {
         type: 'INGRESO',
         category: 'COBRO_CUOTA',
         amount: amount,
-        paymentMethod: paymentMethod, // <--- Método de pago real del cobro
-        loanId: loanId,               // <--- Vínculo directo al préstamo
+        paymentMethod: paymentMethod,
+        loanId: loanId,
         description: `Cobro cuota de préstamo - Cliente: ${loan.client?.name || loanId}`,
       },
     });
