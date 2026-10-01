@@ -47,14 +47,14 @@ export function downloadLoanDisbursementAsImage(loanData, settings) {
   const margin = 35;
   let currentY = margin + 20;
 
-  // --- CABECERA: NOMBRE DE LA EMPRESA EN ASCII ART ---
+  // --- CABECERA: ESTILO ASCII CON BARRAS EN ESCALA DE GRISES / MONOCROMÁTICO ---
   ctx.fillStyle = "#000000";
   ctx.font = "bold 11px monospace";
   ctx.textAlign = "center";
 
   const companyAscii = [
     "========================================",
-    `   *** ${rawCompanyName.toUpperCase()} ***   `,
+    `    *** ${rawCompanyName.toUpperCase()} ***    `,
     "========================================"
   ];
 
@@ -72,15 +72,15 @@ export function downloadLoanDisbursementAsImage(loanData, settings) {
     currentY += 25;
   }
 
-  // Título del comprobante
+  // Título del comprobante (Monocromático en negro)
   ctx.font = "bold 15px sans-serif";
-  ctx.fillStyle = "#16a34a";
+  ctx.fillStyle = "#000000";
   ctx.fillText(headerTitle, width / 2, currentY);
   currentY += 20;
 
   // Línea de puntos / separación estilo ticket
   const drawDottedLine = (y) => {
-    ctx.strokeStyle = "#a3a3a3";
+    ctx.strokeStyle = "#737373";
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -141,20 +141,14 @@ export function downloadLoanDisbursementAsImage(loanData, settings) {
   drawDottedLine(currentY);
   currentY += 25;
 
-  const drawItemRow = (desc, val, isGreen = false, isRed = false) => {
+  const drawItemRow = (desc, val) => {
     ctx.textAlign = "left";
     ctx.fillStyle = "#262626";
     ctx.font = "13px sans-serif";
     ctx.fillText(desc, margin, currentY);
 
     ctx.textAlign = "right";
-    if (isGreen) {
-      ctx.fillStyle = "#16a34a";
-    } else if (isRed) {
-      ctx.fillStyle = "#dc2626";
-    } else {
-      ctx.fillStyle = "#000000";
-    }
+    ctx.fillStyle = "#000000";
     ctx.font = "13px sans-serif";
     ctx.fillText(val, width - margin, currentY);
 
@@ -165,14 +159,14 @@ export function downloadLoanDisbursementAsImage(loanData, settings) {
   const interestAmt = Math.round(loanData?.interestAmount || 0);
   const total = Math.round(loanData?.totalToPay || 0);
 
-  drawItemRow(`Capital Entregado`, `${currency} ${amount.toLocaleString("es-AR")}`, false, true);
+  drawItemRow(`Capital Entregado`, `${currency} ${amount.toLocaleString("es-AR")}`);
   drawItemRow(`Plazo: ${installments} cuota(s) [${loanData?.frequency || "A_TERMINO"}]`, `-`);
   
   if (loanData?.frequency === "A_TERMINO") {
     drawItemRow(`Plazo Estimado (${loanData?.daysDiff || 0} días)`, `-`);
   }
 
-  drawItemRow(`Interés Aplicado (${loanData?.interestRate || 0}%)`, `${currency} ${interestAmt.toLocaleString("es-AR")}`, true);
+  drawItemRow(`Interés Aplicado (${loanData?.interestRate || 0}%)`, `${currency} ${interestAmt.toLocaleString("es-AR")}`);
 
   currentY += 5;
   drawDottedLine(currentY);
@@ -233,14 +227,14 @@ export function downloadLoanDisbursementAsImage(loanData, settings) {
     currentY += 26;
   }
 
-  // 2. Total a Devolver abajo de todo
+  // 2. Total a Devolver abajo de todo (en negro monocromático)
   ctx.textAlign = "left";
   ctx.fillStyle = "#000000";
   ctx.font = "bold 14px sans-serif";
   ctx.fillText("TOTAL A DEVOLVER:", margin, currentY);
 
   ctx.textAlign = "right";
-  ctx.fillStyle = "#dc2626";
+  ctx.fillStyle = "#000000";
   ctx.font = "bold 17px sans-serif";
   ctx.fillText(`${currency} ${total.toLocaleString("es-AR")}`, width - margin, currentY);
 
@@ -267,7 +261,7 @@ export function downloadLoanDisbursementAsImage(loanData, settings) {
   document.body.removeChild(downloadLink);
 }
 
-// Componente visual que expone el botón de descarga del comprobante de desembolso
+// Componente visual que expone el botón de descarga del comprobante de desembolso (con botón verde original)
 export default function LoanDisbursementReceipt({ loanData, settings }) {
   return (
     <div className="w-full">
