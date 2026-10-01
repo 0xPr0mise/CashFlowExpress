@@ -7,29 +7,37 @@ import AnalyticsCharts from "../../components/analytics/AnalyticsCharts";
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState(null);
-  const [filteredStats, setFilteredStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getAnalytics()
+  // Carga inicial y por cambio de filtros consumiendo el backend
+  const fetchAnalyticsData = (filters = {}) => {
+    setLoading(true);
+    getAnalytics(filters)
       .then((data) => {
         console.log("Datos analíticos recibidos:", data);
         setStats(data || {});
-        setFilteredStats(data || {});
         setLoading(false);
       })
       .catch((err) => {
         console.error("Error cargando analíticas:", err);
         setLoading(false);
       });
-  }, []);
-
-  const handleFilterChange = ({ preset, startDate, endDate }) => {
-    if (!stats) return;
-    setFilteredStats(stats);
   };
 
-  if (loading)
+  useEffect(() => {
+    fetchAnalyticsData({ preset: "all" });
+  }, []);
+
+  // Recibe los filtros desde AnalyticsFilters y consulta al backend
+  const handleFilterChange = ({ preset, startDate, endDate }) => {
+    fetchAnalyticsData({
+      preset,
+      startDate: startDate ? startDate.toISOString().split("T")[0] : null,
+      endDate: endDate ? endDate.toISOString().split("T")[0] : null,
+    });
+  };
+
+  if (loading && !stats)
     return (
       <div className="min-h-screen bg-black text-neutral-400 flex items-center justify-center font-sans">
         <div className="flex items-center gap-3">
@@ -39,7 +47,7 @@ export default function AnalyticsPage() {
       </div>
     );
 
-  const currentData = filteredStats || stats || {};
+  const currentData = stats || {};
   
   const totalLoans = Number(currentData.totalLoansCount) || 1;
   const activeLoans = Number(currentData.activeLoansCount) || 0;
@@ -85,7 +93,7 @@ export default function AnalyticsPage() {
       <div className="max-w-6xl mx-auto space-y-8">
         
         <AnalyticsHeader />
-        <AnalyticsFilters onFilterChange={handleFilterChange} rawData={stats} />
+        <AnalyticsFilters onFilterChange={handleFilterChange} rawData={currentData} />
         <AnalyticsKpiGrid stats={currentData} calculations={calculations} />
         <AnalyticsCharts stats={currentData} calculations={calculations} />
         

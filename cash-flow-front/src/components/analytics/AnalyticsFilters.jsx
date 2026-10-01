@@ -108,7 +108,7 @@ export default function AnalyticsFilters({ onFilterChange, rawData }) {
             type="date"
             value={startDate}
             onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-            onClick={(e) => e.target.showPicker && e.target.showPicker()} // Abre el calendario inmediatamente al hacer clic
+            onClick={(e) => e.target.showPicker && e.target.showPicker()}
             className="bg-transparent text-xs text-neutral-200 focus:outline-none cursor-pointer [color-scheme:dark]"
           />
         </div>
@@ -120,15 +120,15 @@ export default function AnalyticsFilters({ onFilterChange, rawData }) {
             type="date"
             value={endDate}
             onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-            onClick={(e) => e.target.showPicker && e.target.showPicker()} // Abre el calendario inmediatamente al hacer clic
+            onClick={(e) => e.target.showPicker && e.target.showPicker()}
             className="bg-transparent text-xs text-neutral-200 focus:outline-none cursor-pointer [color-scheme:dark]"
           />
         </div>
 
-        {/* Botón de Exportar XLSX */}
+        {/* Botón de Exportar XLSX (Contraste corregido a texto blanco) */}
         <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-emerald-950 transition-all cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950 transition-all cursor-pointer"
           title="Descargar reporte en formato XLSX"
         >
           <span>📥</span>
