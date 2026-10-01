@@ -6,6 +6,7 @@ import { getSettings } from "../../services/settings.service";
 import LoanForm from "./components/LoanForm";
 import LoansTable from "./components/LoansTable";
 import UpcomingExpirationsModal from "../../components/loans/UpcomingExpirationsModal";
+import LoanSuccessModal from "./components/LoanSuccessModal"; // <-- Importá tu modal de éxito
 
 export default function LoansPage() {
   const [loans, setLoans] = useState([]);
@@ -13,15 +14,17 @@ export default function LoansPage() {
   const [defaultInterest, setDefaultInterest] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Estado para el filtro desplegable superior ("ACTIVO", "REFINANCIADO", "PAGADO", "TODOS")
   const [filterStatus, setFilterStatus] = useState("ACTIVO");
-  
-  // Estado booleano para activar/desactivar el filtro rápido por el botón exterior
   const [showOnlyUpcoming, setShowOnlyUpcoming] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [isExpirationsModalOpen, setIsExpirationsModalOpen] = useState(false);
+  
+  // --- NUEVOS ESTADOS PARA EL MODAL DE ÉXITO ---
+  const [successLoanData, setSuccessLoanData] = useState(null);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
   const [refinanceInitialData, setRefinanceInitialData] = useState(null);
   const [currentOldLoanId, setCurrentOldLoanId] = useState(null);
 
@@ -90,11 +93,21 @@ export default function LoansPage() {
         oldLoanId: currentOldLoanId || loanData.oldLoanId || null,
       };
 
-      await createLoan(cleanLoanData);
+      // 1. Guardamos el préstamo y obtenemos la respuesta del backend (que trae el objeto creado con su ID corto y datos)
+      const newCreatedLoan = await createLoan(cleanLoanData);
+
+      // 2. Cerramos el formulario de carga
+      setIsLoanModalOpen(false);
       setRefinanceInitialData(null); 
       setCurrentOldLoanId(null);
-      setIsLoanModalOpen(false);
+
+      // 3. Recargamos la tabla de fondo
       await loadData();
+
+      // 4. Abrimos el modal de éxito pasándole los datos y NO se cierra solo
+      setSuccessLoanData(newCreatedLoan);
+      setIsSuccessModalOpen(true);
+
     } catch (error) {
       console.error("Error al crear préstamo:", error);
       alert("Error al registrar el préstamo en el servidor");
@@ -146,7 +159,6 @@ export default function LoansPage() {
     }
   };
 
-  // Función auxiliar para verificar vencimientos a 7 días
   const hasUpcomingExpirations = (loan) => {
     if (loan.status === "REFINANCIADO" || loan.status === "PAGADO") return false;
     let schedule = [];
@@ -207,7 +219,6 @@ export default function LoansPage() {
   const activeLoansCount = loans.filter((l) => l.status === "ACTIVO" || !l.status).length;
   const totalPortfolioValue = loans.reduce((acc, curr) => acc + (curr.status === "REFINANCIADO" ? 0 : (curr.totalToPay || curr.amount || 0)), 0);
 
-  // Filtrado combinando buscador, select y el botón exterior
   const filteredLoans = loans.filter((loan) => {
     const clientName = loan.client?.name || loan.clientName || "";
     const matchesSearch =
@@ -229,14 +240,12 @@ export default function LoansPage() {
     return true;
   });
 
-  // Función para exportar con la librería xlsx
   const handleExportExcel = () => {
     if (filteredLoans.length === 0) {
       alert("No hay datos para exportar con los filtros actuales.");
       return;
     }
 
-    // Mapear los datos filtrados actuales a un formato limpio para la planilla
     const dataToExport = filteredLoans.map((loan) => ({
       "ID Préstamo": loan.id || "",
       "Cliente": loan.client?.name || loan.clientName || "Sin cliente",
@@ -247,16 +256,13 @@ export default function LoansPage() {
       "Fecha de Emisión": loan.createdAt ? loan.createdAt.split("T")[0] : "",
     }));
 
-    // Crear la hoja de trabajo y el libro usando xlsx
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Préstamos");
 
-    // Generar nombre de archivo dinámico según el filtro actual
     const filterLabel = showOnlyUpcoming ? "Proximos_Vencimientos" : filterStatus;
     const fileName = `Prestamos_${filterLabel}_${new Date().toISOString().split("T")[0]}.xlsx`;
 
-    // Descargar archivo
     XLSX.writeFile(workbook, fileName);
   };
 
@@ -290,7 +296,6 @@ export default function LoansPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Campana original intacta */}
             <div className="relative">
               <button
                 type="button"
@@ -370,6 +375,13 @@ export default function LoansPage() {
           initialData={refinanceInitialData}
         />
 
+        {/* --- MODAL DE ÉXITO QUE NO SE CIERRA SOLO --- */}
+        <LoanSuccessModal
+          isOpen={isSuccessModalOpen}
+          successLoanData={successLoanData}
+          onClose={() => setIsSuccessModalOpen(false)}
+        />
+
         <UpcomingExpirationsModal
           isOpen={isExpirationsModalOpen}
           onClose={() => setIsExpirationsModalOpen(false)}
@@ -377,10 +389,8 @@ export default function LoansPage() {
         />
 
         <div className="space-y-4">
-          {/* Barra de Filtros Superior Estilizada */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-neutral-900/40 p-4 rounded-2xl border border-neutral-800/80 backdrop-blur-sm">
             
-            {/* Lado izquierdo: Título, contador y botones exteriores */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-3">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -394,7 +404,6 @@ export default function LoansPage() {
                 </span>
               </div>
 
-              {/* Botón de Próximos Vencimientos por fuera */}
               <button
                 type="button"
                 onClick={() => setShowOnlyUpcoming(!showOnlyUpcoming)}
@@ -411,7 +420,6 @@ export default function LoansPage() {
                 <span>Próx. Vencimientos (7 días)</span>
               </button>
 
-              {/* Botón de Exportar a Excel por fuera usando la librería xlsx */}
               <button
                 type="button"
                 onClick={handleExportExcel}
@@ -425,7 +433,6 @@ export default function LoansPage() {
               </button>
             </div>
 
-            {/* Lado derecho: Buscador + Select de Estado tradicional */}
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
               <div className="w-full sm:w-48 relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-500">
