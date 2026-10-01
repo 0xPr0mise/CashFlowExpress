@@ -20,8 +20,73 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
   let totalToPay = 0;
   const schedule = [];
 
-  // CASO 1: CUOTA ÚNICA O A TÉRMINO
-  if (installments === 1 || frequency === "A_TERMINO") {
+  // =========================================================================
+  // LÓGICA GLOBAL PARA FRECUENCIAS DIARIA, SEMANAL Y QUINCENAL
+  // =========================================================================
+  if ((frequency === "DIARIO" || frequency === "SEMANAL" || frequency === "QUINCENAL") && installments > 1) {
+    // Determinamos el factor de días según la frecuencia
+    let daysPerInstallment = 1;
+    if (frequency === "SEMANAL") daysPerInstallment = 7;
+    if (frequency === "QUINCENAL") daysPerInstallment = 15;
+
+    // Plazo total en días del préstamo completo
+    const totalDays = installments * daysPerInstallment;
+    const diasMesBase = 30;
+
+    // Analizamos si el total de días es 30 o menos, o más de 30
+    if (totalDays <= diasMesBase) {
+      const dailyRate = baseInterestRate / diasMesBase;
+      finalInterestRate = Math.round(dailyRate * Math.max(1, totalDays) * 100) / 100;
+      interestAmount = Math.round(amount * (finalInterestRate / 100));
+    } else {
+      const diasExtras = totalDays - diasMesBase;
+      const interesPrimerMes = amount * (baseInterestRate / 100);
+      
+      const tasaARecalcular = form.remainderType === "personalizado" 
+        ? (parseInt(form.remainderRate, 10) || baseInterestRate)
+        : baseInterestRate;
+
+      const tasaDiariaRemanente = tasaARecalcular / diasMesBase;
+      const tasaRemanenteEfectiva = tasaDiariaRemanente * diasExtras;
+      const interesRemanente = amount * (tasaRemanenteEfectiva / 100);
+
+      interestAmount = Math.round(interesPrimerMes + interesRemanente);
+      finalInterestRate = Math.round((interestAmount / amount) * 100);
+    }
+
+    totalToPay = amount + interestAmount;
+    
+    // Distribuimos equitativamente el capital y el interés global entre cada cuota
+    const installmentCapital = amount / installments;
+    const installmentInterest = interestAmount / installments;
+    const installmentTotal = totalToPay / installments;
+
+    let baseDateObj = new Date(form.dueDate);
+
+    for (let i = 1; i <= installments; i++) {
+      let instDate = new Date(baseDateObj);
+      
+      if (frequency === "DIARIO") {
+        instDate.setDate(baseDateObj.getDate() + (i - 1));
+      } else if (frequency === "SEMANAL") {
+        instDate.setDate(baseDateObj.getDate() + (7 * (i - 1)));
+      } else if (frequency === "QUINCENAL") {
+        instDate.setDate(baseDateObj.getDate() + (15 * (i - 1)));
+      }
+
+      schedule.push({
+        installmentNumber: i,
+        dueDate: instDate.toISOString().split('T')[0],
+        capital: Math.round(installmentCapital),
+        interest: Math.round(installmentInterest),
+        amount: Math.round(installmentTotal)
+      });
+    }
+
+  } else if (installments === 1 || frequency === "A_TERMINO") {
+    // ==========================================
+    // CASO 1: CUOTA ÚNICA O A TÉRMINO
+    // ==========================================
     const diasMesBase = 30;
 
     if (currentDaysDiff <= diasMesBase) {
@@ -33,11 +98,6 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
       const interesPrimerMes = amount * (baseInterestRate / 100);
       
       let interesRemanente = 0;
-
-      // CORRECCIÓN EXACTA PARA EL REMANENTE:
-      // Si es "personalizado", tomamos la tasa que eligió el usuario para el remanente. 
-      // Si es "proporcional", usamos la tasa base mensual.
-      // En ambos casos, se divide por 30 y se multiplica por los días extras exactos.
       const tasaARecalcular = form.remainderType === "personalizado" 
         ? (parseInt(form.remainderRate, 10) || baseInterestRate)
         : baseInterestRate;
@@ -61,7 +121,9 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
     });
 
   } else {
-    // CASO 2: MÚLTIPLES CUOTAS
+    // ==========================================
+    // CASO 2: MÚLTIPLES CUOTAS (MENSUAL / OTROS)
+    // ==========================================
     const installmentCapital = Math.round(amount / installments);
     let accumulatedInterest = 0;
     let baseDateObj = new Date(form.dueDate);
@@ -71,12 +133,6 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
       
       if (frequency === "MENSUAL") {
         instDate.setMonth(baseDateObj.getMonth() + (i - 1));
-      } else if (frequency === "QUINCENAL") {
-        instDate.setDate(baseDateObj.getDate() + (15 * (i - 1)));
-      } else if (frequency === "SEMANAL") {
-        instDate.setDate(baseDateObj.getDate() + (7 * (i - 1)));
-      } else if (frequency === "DIARIO") {
-        instDate.setDate(baseDateObj.getDate() + (i - 1));
       }
 
       let instInterest = 0;
