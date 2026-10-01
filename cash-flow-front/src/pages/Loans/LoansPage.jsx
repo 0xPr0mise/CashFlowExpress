@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { getLoans, createLoan, deleteLoan, updateLoan } from "../../services/loans.service";
 import { getClients } from "../../services/client.service";
 import { getSettings } from "../../services/settings.service";
@@ -228,6 +229,37 @@ export default function LoansPage() {
     return true;
   });
 
+  // Función para exportar con la librería xlsx
+  const handleExportExcel = () => {
+    if (filteredLoans.length === 0) {
+      alert("No hay datos para exportar con los filtros actuales.");
+      return;
+    }
+
+    // Mapear los datos filtrados actuales a un formato limpio para la planilla
+    const dataToExport = filteredLoans.map((loan) => ({
+      "ID Préstamo": loan.id || "",
+      "Cliente": loan.client?.name || loan.clientName || "Sin cliente",
+      "Capital Prestado": loan.amount || 0,
+      "Total a Pagar": loan.totalToPay || loan.amount || 0,
+      "Saldo Pendiente": loan.pendingAmount !== undefined ? loan.pendingAmount : 0,
+      "Estado": loan.status || "ACTIVO",
+      "Fecha de Emisión": loan.createdAt ? loan.createdAt.split("T")[0] : "",
+    }));
+
+    // Crear la hoja de trabajo y el libro usando xlsx
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Préstamos");
+
+    // Generar nombre de archivo dinámico según el filtro actual
+    const filterLabel = showOnlyUpcoming ? "Proximos_Vencimientos" : filterStatus;
+    const fileName = `Prestamos_${filterLabel}_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+    // Descargar archivo
+    XLSX.writeFile(workbook, fileName);
+  };
+
   const getSelectStyle = (status) => {
     if (showOnlyUpcoming) return "border-neutral-700 text-neutral-500 bg-neutral-900 opacity-50 cursor-not-allowed";
     switch (status) {
@@ -348,8 +380,8 @@ export default function LoansPage() {
           {/* Barra de Filtros Superior Estilizada */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-neutral-900/40 p-4 rounded-2xl border border-neutral-800/80 backdrop-blur-sm">
             
-            {/* Lado izquierdo: Título y el BOTÓN POR FUERA para próximos vencimientos */}
-            <div className="flex flex-wrap items-center gap-4">
+            {/* Lado izquierdo: Título, contador y botones exteriores */}
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-3">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -362,11 +394,11 @@ export default function LoansPage() {
                 </span>
               </div>
 
-              {/* Botón totalmente por fuera y a la izquierda */}
+              {/* Botón de Próximos Vencimientos por fuera */}
               <button
                 type="button"
                 onClick={() => setShowOnlyUpcoming(!showOnlyUpcoming)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer border ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer border ${
                   showOnlyUpcoming
                     ? "bg-rose-600 text-white border-rose-500 shadow-rose-950/50"
                     : "bg-neutral-900 hover:bg-neutral-800 text-rose-400 border-neutral-700 hover:border-neutral-600"
@@ -378,11 +410,24 @@ export default function LoansPage() {
                 </svg>
                 <span>Próx. Vencimientos (7 días)</span>
               </button>
+
+              {/* Botón de Exportar a Excel por fuera usando la librería xlsx */}
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-500/50 hover:border-emerald-500"
+                title="Descargar vista actual en formato XLSX"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                <span>Exportar Excel</span>
+              </button>
             </div>
 
             {/* Lado derecho: Buscador + Select de Estado tradicional */}
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              <div className="w-full sm:w-52 relative">
+              <div className="w-full sm:w-48 relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-500">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
