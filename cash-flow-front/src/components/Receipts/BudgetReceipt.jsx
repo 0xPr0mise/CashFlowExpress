@@ -3,7 +3,7 @@ export function downloadBudgetAsImage(loanData, settings) {
   const currency = settings?.currency || "$";
   const rawCompanyName = settings?.companyName || "Cash Flow Express V.2";
   const companyId = settings?.receiptCompanyId || "";
-  const headerTitle = "TICKET / PRESUPUESTO";
+  const headerTitle = "PRESUPUESTO";
   const footerNote = settings?.receiptFooterNote || "Gracias por su preferencia.";
 
   const clientName = loanData?.client?.name 
@@ -14,15 +14,15 @@ export function downloadBudgetAsImage(loanData, settings) {
   // Determinamos altura dinámica del canvas en base a si hay cuotas múltiples o no
   const installments = loanData?.installments || 1;
   const hasSchedule = installments > 1 && loanData?.schedule && loanData.schedule.length > 0;
-  
-  // Altura base + espacio adicional por cada cuota si existe cronograma
-  const baseHeight = hasSchedule ? 650 : 580;
-  const scheduleHeight = hasSchedule ? loanData.schedule.length * 28 : 0;
-  const totalHeight = Math.max(960, baseHeight + scheduleHeight);
 
-  // 1. Configuramos dimensiones tipo ticket vertical / factura estrecha
+  // Altura base + espacio adicional por cada cuota si existe cronograma
+  const baseHeight = hasSchedule ? 720 : 640;
+  const scheduleHeight = hasSchedule ? loanData.schedule.length * 28 : 0;
+  const totalHeight = Math.max(1000, baseHeight + scheduleHeight);
+
+  // 1. Configuramos dimensiones tipo ticket vertical / factura estrecha (600px para evitar cortes)
   const canvas = document.createElement("canvas");
-  const width = 580;
+  const width = 600;
   canvas.width = width;
   canvas.height = totalHeight;
   const ctx = canvas.getContext("2d");
@@ -32,63 +32,62 @@ export function downloadBudgetAsImage(loanData, settings) {
   ctx.fillRect(0, 0, width, totalHeight);
 
   const margin = 35;
-  let currentY = margin + 20;
+  let currentY = margin + 15;
 
-  // --- CABECERA: NOMBRE DE LA EMPRESA EN ASCII ART ---
+  // --- CABECERA: ARTE ASCII EN NEGRITA PARA EL LOGO (Con asteriscos continuos y color negro) ---
   ctx.fillStyle = "#000000";
-  ctx.font = "bold 11px monospace";
+  ctx.font = "bold 12px monospace";
   ctx.textAlign = "center";
 
   const companyAscii = [
-    "========================================",
-    `   *** ${rawCompanyName.toUpperCase()} ***   `,
-    "========================================"
+    "****************************************************",
+    `*      *** ** ${rawCompanyName.toUpperCase()} ** ***      *`,
+    "****************************************************"
   ];
 
   companyAscii.forEach((line) => {
     ctx.fillText(line, width / 2, currentY);
-    currentY += 18;
+    currentY += 20;
   });
 
-  currentY += 10;
+  currentY += 8;
 
   if (companyId) {
-    ctx.font = "13px sans-serif";
-    ctx.fillStyle = "#404040";
+    ctx.font = "12px monospace";
+    ctx.fillStyle = "#000000";
     ctx.fillText(`CUIT / RUT: ${companyId}`, width / 2, currentY);
-    currentY += 25;
+    currentY += 22;
   }
 
-  // Título del comprobante
+  // Título del comprobante en negro total
   ctx.font = "bold 14px sans-serif";
-  ctx.fillStyle = "#2563eb";
+  ctx.fillStyle = "#000000";
   ctx.fillText(headerTitle, width / 2, currentY);
-  currentY += 20;
+  currentY += 22;
 
-  // Línea de puntos / separación estilo ticket
-  const drawDottedLine = (y) => {
-    ctx.strokeStyle = "#a3a3a3";
+  // Función estricta para asegurar línea continua pura de color negro
+  const drawSolidLine = (y) => {
+    ctx.strokeStyle = "#000000";
     ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
+    ctx.setLineDash([]); // Asegura que no haya segmentos discontinuos
     ctx.beginPath();
     ctx.moveTo(margin, y);
     ctx.lineTo(width - margin, y);
     ctx.stroke();
-    ctx.setLineDash([]); // Reset
   };
 
-  drawDottedLine(currentY);
+  drawSolidLine(currentY);
   currentY += 20;
 
   // --- DATOS GENERALES (Estilo factura) ---
   const drawTicketRow = (label, value, isBold = false) => {
     ctx.textAlign = "left";
-    ctx.fillStyle = "#525252";
+    ctx.fillStyle = "#000000";
     ctx.font = "13px sans-serif";
     ctx.fillText(label, margin, currentY);
 
     ctx.textAlign = "right";
-    ctx.fillStyle = isBold ? "#000000" : "#262626";
+    ctx.fillStyle = "#000000";
     ctx.font = isBold ? "bold 13px sans-serif" : "13px sans-serif";
     ctx.fillText(value, width - margin, currentY);
 
@@ -114,7 +113,7 @@ export function downloadBudgetAsImage(loanData, settings) {
   drawTicketRow("VALIDEZ:", "Sólo por el día de la fecha");
 
   currentY += 10;
-  drawDottedLine(currentY);
+  drawSolidLine(currentY);
   currentY += 25;
 
   // --- DETALLE DE ÍTEMS / CONCEPTOS ---
@@ -126,17 +125,17 @@ export function downloadBudgetAsImage(loanData, settings) {
   ctx.fillText("SUBTOTAL", width - margin, currentY);
   currentY += 18;
 
-  drawDottedLine(currentY);
+  drawSolidLine(currentY);
   currentY += 25;
 
-  const drawItemRow = (desc, val, isGreen = false) => {
+  const drawItemRow = (desc, val) => {
     ctx.textAlign = "left";
-    ctx.fillStyle = "#262626";
+    ctx.fillStyle = "#000000";
     ctx.font = "13px sans-serif";
     ctx.fillText(desc, margin, currentY);
 
     ctx.textAlign = "right";
-    ctx.fillStyle = isGreen ? "#16a34a" : "#000000";
+    ctx.fillStyle = "#000000";
     ctx.font = "13px sans-serif";
     ctx.fillText(val, width - margin, currentY);
 
@@ -148,19 +147,37 @@ export function downloadBudgetAsImage(loanData, settings) {
   const total = Math.round(loanData?.totalToPay || 0);
 
   drawItemRow(`Capital Solicitado`, `${currency} ${amount.toLocaleString("es-AR")}`);
-  drawItemRow(`Plazo: ${installments} cuota(s) [${loanData?.frequency || "A_TERMINO"}]`, `-`);
-  
-  if (loanData?.frequency === "A_TERMINO") {
-    drawItemRow(`Plazo Estimado (${loanData?.daysDiff || 0} días)`, `-`);
+  drawItemRow(`Plazo: ${installments} cuota(s) [${loanData?.frequency || "Única"}]`, `-`);
+
+  if (loanData?.frequency === "A_TERMINO" || loanData?.frequency === "UNICA" || installments === 1) {
+    const days = loanData?.daysDiff || loanData?.termDays || 0;
+    if (days > 0) {
+      drawItemRow(`Plazo Estimado (${days} días)`, `-`);
+    }
   }
 
-  drawItemRow(`Interés Aplicado (${loanData?.interestRate || 0}%)`, `${currency} ${interestAmt.toLocaleString("es-AR")}`, true);
+  drawItemRow(`Interés Aplicado (${loanData?.interestRate || 0}%)`, `${currency} ${interestAmt.toLocaleString("es-AR")}`);
 
   currentY += 5;
-  drawDottedLine(currentY);
+  drawSolidLine(currentY);
   currentY += 25;
 
-  // --- CRONOGRAMA DE CUOTAS (Si aplica) ---
+  // --- TOTALES FINALES ---
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText("TOTAL A PAGAR:", margin, currentY);
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillText(`${currency} ${total.toLocaleString("es-AR")}`, width - margin, currentY);
+
+  currentY += 15;
+  drawSolidLine(currentY);
+  currentY += 20;
+
+  // --- VENCIMIENTOS / CRONOGRAMA (UBICADO INMEDIATAMENTE ABAJO DEL TOTAL) ---
   if (hasSchedule) {
     ctx.textAlign = "left";
     ctx.fillStyle = "#000000";
@@ -170,8 +187,7 @@ export function downloadBudgetAsImage(loanData, settings) {
 
     loanData.schedule.forEach((inst) => {
       const instNum = inst.installmentNumber;
-      
-      // Convertir fecha de YYYY-MM-DD a DD/MM/AAAA para prolijidad en el ticket
+
       let readableDueDate = inst.dueDate;
       if (inst.dueDate && inst.dueDate.includes("-")) {
         const [yyyy, mm, dd] = inst.dueDate.split("-");
@@ -179,9 +195,9 @@ export function downloadBudgetAsImage(loanData, settings) {
       }
 
       const instAmount = Math.round(inst.amount);
-      
+
       ctx.textAlign = "left";
-      ctx.fillStyle = "#404040";
+      ctx.fillStyle = "#000000";
       ctx.font = "11px sans-serif";
       ctx.fillText(`Cuota #${instNum} — Venc: ${readableDueDate}`, margin, currentY);
 
@@ -194,32 +210,59 @@ export function downloadBudgetAsImage(loanData, settings) {
     });
 
     currentY += 5;
-    drawDottedLine(currentY);
+    drawSolidLine(currentY);
+    currentY += 25;
+  } else {
+    // Extracción inteligente de la fecha de vencimiento única (prioriza firstDueDate, dueDate o el primer elemento del schedule si existiera)
+    let rawDueDate = loanData?.firstDueDate || loanData?.dueDate || (loanData?.schedule?.[0]?.dueDate);
+    let formattedDueDate = "No especificada";
+
+    if (rawDueDate) {
+      if (typeof rawDueDate === "string" && rawDueDate.includes("-")) {
+        // Formato YYYY-MM-DD
+        const parts = rawDueDate.split("T")[0].split("-");
+        if (parts.length === 3) {
+          formattedDueDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } else {
+          formattedDueDate = rawDueDate;
+        }
+      } else {
+        formattedDueDate = rawDueDate;
+      }
+    } else {
+      // Si no hay fecha explícita pero hay días de plazo, la calculamos a partir de hoy
+      const days = loanData?.daysDiff || loanData?.termDays || 0;
+      if (days > 0) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + Number(days));
+        formattedDueDate = futureDate.toLocaleDateString("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
+        });
+      }
+    }
+    
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("FECHA DE VENCIMIENTO:", margin, currentY);
+    
+    ctx.textAlign = "right";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText(formattedDueDate, width - margin, currentY);
+
+    currentY += 25;
+    drawSolidLine(currentY);
     currentY += 25;
   }
 
-  // --- TOTALES FINALES ---
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#000000";
-  ctx.font = "bold 15px sans-serif";
-  ctx.fillText("TOTAL A PAGAR:", margin, currentY);
-
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#1d4ed8";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`${currency} ${total.toLocaleString("es-AR")}`, width - margin, currentY);
-
-  currentY += 45;
-  drawDottedLine(currentY);
-  currentY += 30;
-
   // --- PIE DEL TICKET ---
   ctx.textAlign = "center";
-  ctx.fillStyle = "#737373";
+  ctx.fillStyle = "#000000";
   ctx.font = "12px sans-serif";
   ctx.fillText(footerNote, width / 2, currentY);
   currentY += 20;
-  ctx.fillStyle = "#a3a3a3";
   ctx.fillText("Simulación informativa.", width / 2, currentY);
 
   // 2. Descarga automática inmediata del Canvas como PNG
@@ -232,7 +275,7 @@ export function downloadBudgetAsImage(loanData, settings) {
   document.body.removeChild(downloadLink);
 }
 
-// Componente visual que expone únicamente el botón de llamada a la acción (CTA)
+// Componente visual que expone únicamente el botón de llamada a la acción (CTA) con diseño verde
 export default function BudgetReceipt({ loanData, settings }) {
   return (
     <div className="w-full">
