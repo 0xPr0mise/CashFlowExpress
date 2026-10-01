@@ -42,7 +42,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
     const installmentsList = schedule || loan.installmentsList;
 
     if (Array.isArray(installmentsList) && installmentsList.length > 0) {
-      const nextInstallment = installmentsList.find((inst) => inst.status !== "PAGADO") || installmentsList[0];
+      const nextInstallment = installmentsList.find((inst) => inst.status !== "PAGADO" && inst.status !== "PAGADA") || installmentsList[0];
       if (nextInstallment && nextInstallment.dueDate) {
         return nextInstallment.dueDate.split("T")[0];
       }
@@ -62,9 +62,22 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
     return rawDate ? formatDateToLocal(rawDate) : "N/A";
   };
 
+  // Función para detectar si un préstamo está vencido (fecha pasada y no pagado)
+  const isLoanOverdue = (loan) => {
+    if (loan.status === "PAGADO" || loan.status === "REFINANCIADO") return false;
+    const dueDateStr = getNextDueDateObject(loan);
+    if (!dueDateStr) return false;
+
+    // Crear fecha actual sin hora para comparar correctamente
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate = new Date(dueDateStr + "T00:00:00");
+    return dueDate < today;
+  };
+
   // Manejador para el botón de Refinanciar
   const handleRefinanceClick = async (loan) => {
-    // 1. Calcular el monto remanente pendiente
     let schedule = [];
     try {
       schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
@@ -81,7 +94,6 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
       remainingAmount = loan.pendingAmount || loan.totalToPay || loan.amount || 0;
     }
 
-    // 2. Alerta de confirmación
     const result = await Swal.fire({
       title: "¿Refinanciar Préstamo?",
       html: `
@@ -109,21 +121,17 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
 
     try {
       setLoadingId(loan.id);
-
-      // 3. Crear la nota histórica detallada
       const clientName = loan.client?.name || loan.clientName || "Cliente";
       const noteDetails = `Refinanciación del préstamo #${loan.id || ''} de ${clientName}. Monto remanente refinanciado: $${remainingAmount.toLocaleString("es-AR")}.`;
 
-      // 4. Preparar paquete de datos para precargar el LoanForm
       const refinancePayload = {
         clientId: loan.clientId,
         amount: String(remainingAmount),
         interestRate: String(loan.interestRate || 20),
         notes: noteDetails,
-        oldLoanId: loan.id, // Para que el backend sepa cuál cerrar o actualizar
+        oldLoanId: loan.id,
       };
 
-      // 5. Disparar la función hacia LoansPage para cerrar el viejo y abrir el form nuevo
       if (onRefinanceLoan) {
         onRefinanceLoan(refinancePayload);
       }
@@ -190,13 +198,24 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                   : Math.max(0, totalToPay - totalPaidSoFar);
 
                 const isClosed = loan.status === "PAGADO" || loan.status === "REFINANCIADO";
+                const overdue = isLoanOverdue(loan);
 
                 return (
                   <tr
                     key={loan.id}
-                    className="hover:bg-neutral-800/30 transition-colors"
+                    className={`transition-colors ${
+                      overdue 
+                        ? "bg-rose-950/20 hover:bg-rose-950/40 border-l-4 border-l-rose-500" 
+                        : "hover:bg-neutral-800/30"
+                    }`}
                   >
-                    <td className="p-4 font-bold text-white">
+                    <td className="p-4 font-bold text-white flex items-center gap-2">
+                      {overdue && (
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                        </span>
+                      )}
                       {loan.client?.name || "N/A"}
                     </td>
                     <td className="p-4 text-neutral-400">{loan.installments}</td>
@@ -210,8 +229,8 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                       {formatMoney(pendingAmount)}
                     </td>
 
-                    <td className="p-4 text-neutral-300 font-medium">
-                      {getNextDueDateFormatted(loan)}
+                    <td className={`p-4 font-medium ${overdue ? "text-rose-400 animate-pulse font-bold" : "text-neutral-300"}`}>
+                      {getNextDueDateFormatted(loan)} {overdue && "⚠️"}
                     </td>
 
                     <td className="p-4">
@@ -220,11 +239,13 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                           loan.status === "PAGADO"
                             ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
                             : loan.status === "REFINANCIADO"
-                            ? "bg-purple-950/40 text-purple-400 border-purple-900/40"
+                            ? "bg-purple-950/40 text-purple-900/40 text-purple-400"
+                            : overdue
+                            ? "bg-rose-950/60 text-rose-400 border-rose-900/60 animate-pulse"
                             : "bg-amber-950/40 text-amber-400 border-amber-900/40"
                         }`}
                       >
-                        {loan.status || "ACTIVO"}
+                        {overdue ? "VENCIDO" : (loan.status || "ACTIVO")}
                       </span>
                     </td>
 

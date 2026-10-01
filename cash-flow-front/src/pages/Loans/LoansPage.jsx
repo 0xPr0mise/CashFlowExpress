@@ -6,7 +6,7 @@ import { getSettings } from "../../services/settings.service";
 import LoanForm from "./components/LoanForm";
 import LoansTable from "./components/LoansTable";
 import UpcomingExpirationsModal from "../../components/loans/UpcomingExpirationsModal";
-import LoanSuccessModal from "./components/LoanSuccessModal"; // <-- Importá tu modal de éxito
+import LoanSuccessModal from "./components/LoanSuccessModal";
 
 export default function LoansPage() {
   const [loans, setLoans] = useState([]);
@@ -21,7 +21,6 @@ export default function LoansPage() {
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [isExpirationsModalOpen, setIsExpirationsModalOpen] = useState(false);
   
-  // --- NUEVOS ESTADOS PARA EL MODAL DE ÉXITO ---
   const [successLoanData, setSuccessLoanData] = useState(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
@@ -45,13 +44,27 @@ export default function LoansPage() {
       ]);
 
       if (Array.isArray(loansData)) {
-        const normalizedLoans = loansData.map((loan) => ({
-          ...loan,
-          dueDate: loan.dueDate || loan.due_date,
-          totalToPay: loan.status === "REFINANCIADO" ? 0 : (loan.totalToPay || loan.total_to_pay || loan.amount),
-          pendingAmount: loan.status === "REFINANCIADO" || loan.status === "PAGADO" ? 0 : (loan.pendingAmount !== undefined ? loan.pendingAmount : (loan.pending_amount !== undefined ? loan.pending_amount : 0)),
-          schedule: loan.status === "REFINANCIADO" ? [] : (loan.schedule || loan.installmentsList || loan.installments_list || []),
-        }));
+        const normalizedLoans = loansData.map((loan) => {
+          const totalToPay = loan.status === "REFINANCIADO" 
+            ? 0 
+            : (Number(loan.totalToPay || loan.total_to_pay || loan.amount) || 0);
+
+          const totalPaidSoFar = Array.isArray(loan.payments)
+            ? loan.payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0)
+            : 0;
+
+          const calculatedPending = loan.status === "REFINANCIADO" || loan.status === "PAGADO" 
+            ? 0 
+            : Math.max(0, totalToPay - totalPaidSoFar);
+
+          return {
+            ...loan,
+            dueDate: loan.dueDate || loan.due_date,
+            totalToPay,
+            pendingAmount: calculatedPending,
+            schedule: loan.status === "REFINANCIADO" ? [] : (loan.schedule || loan.installmentsList || loan.installments_list || []),
+          };
+        });
         setLoans(normalizedLoans);
       }
 
@@ -93,18 +106,14 @@ export default function LoansPage() {
         oldLoanId: currentOldLoanId || loanData.oldLoanId || null,
       };
 
-      // 1. Guardamos el préstamo y obtenemos la respuesta del backend (que trae el objeto creado con su ID corto y datos)
       const newCreatedLoan = await createLoan(cleanLoanData);
 
-      // 2. Cerramos el formulario de carga
       setIsLoanModalOpen(false);
       setRefinanceInitialData(null); 
       setCurrentOldLoanId(null);
 
-      // 3. Recargamos la tabla de fondo
       await loadData();
 
-      // 4. Abrimos el modal de éxito pasándole los datos y NO se cierra solo
       setSuccessLoanData(newCreatedLoan);
       setIsSuccessModalOpen(true);
 
@@ -215,9 +224,44 @@ export default function LoansPage() {
     return count;
   }, [loans]);
 
-  const totalLoanedAmount = loans.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  // --- CÁLCULOS DE KPIS ---
   const activeLoansCount = loans.filter((l) => l.status === "ACTIVO" || !l.status).length;
-  const totalPortfolioValue = loans.reduce((acc, curr) => acc + (curr.status === "REFINANCIADO" ? 0 : (curr.totalToPay || curr.amount || 0)), 0);
+  const totalLoanedAmount = loans.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  
+  const totalPendingAmount = loans.reduce((acc, curr) => {
+    if (curr.status === "REFINANCIADO" || curr.status === "PAGADO") return acc;
+    return acc + (curr.pendingAmount || 0);
+  }, 0);
+
+  const totalOverdueCapital = useMemo(() => {
+    let overdueSum = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    loans.forEach((loan) => {
+      if (loan.status === "REFINANCIADO" || loan.status === "PAGADO") return;
+      let schedule = [];
+      try {
+        schedule = typeof loan.schedule === "string" ? JSON.parse(loan.schedule) : (loan.schedule || []);
+      } catch (e) {
+        schedule = [];
+      }
+
+      schedule.forEach((inst) => {
+        if (inst.status !== "PAGADO" && inst.dueDate) {
+          const cleanDate = inst.dueDate.split("T")[0];
+          const [year, month, day] = cleanDate.split("-");
+          const dueDate = new Date(year, month - 1, day);
+          
+          if (dueDate < today) {
+            overdueSum += (inst.amount || inst.pendingAmount || 0);
+          }
+        }
+      });
+    });
+
+    return overdueSum;
+  }, [loans]);
 
   const filteredLoans = loans.filter((loan) => {
     const clientName = loan.client?.name || loan.clientName || "";
@@ -251,7 +295,7 @@ export default function LoansPage() {
       "Cliente": loan.client?.name || loan.clientName || "Sin cliente",
       "Capital Prestado": loan.amount || 0,
       "Total a Pagar": loan.totalToPay || loan.amount || 0,
-      "Saldo Pendiente": loan.pendingAmount !== undefined ? loan.pendingAmount : 0,
+      "Saldo Pendiente": loan.pendingAmount || 0,
       "Estado": loan.status || "ACTIVO",
       "Fecha de Emisión": loan.createdAt ? loan.createdAt.split("T")[0] : "",
     }));
@@ -331,34 +375,49 @@ export default function LoansPage() {
           </div>
         </div>
 
-        {/* Tarjetas de Resumen */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-red-600 bg-neutral-900/60 backdrop-blur-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
-              Capital Colocado Total
-            </h3>
-            <p className="text-3xl font-black text-white tracking-tight">
-              ${formatMoney(totalLoanedAmount)}
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-emerald-500 bg-neutral-900/60 backdrop-blur-sm">
+        {/* --- TARJETAS DE RESUMEN (KPIs) REORGANIZADAS Y COLOREADAS --- */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          
+          {/* 1. Créditos Activos / Vigentes (Ámbar / Amarillo Operativo) */}
+          <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-amber-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
               Créditos Activos / Vigentes
             </h3>
-            <p className="text-3xl font-black text-emerald-400 tracking-tight">
+            <p className="text-2xl font-black text-amber-400 tracking-tight">
               {activeLoansCount}
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl border border-neutral-800 border-l-4 border-l-neutral-500 bg-neutral-900/60 backdrop-blur-sm">
+          {/* 2. Capital Colocado Total (Púrpura / Inversión) */}
+          <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-purple-500 bg-neutral-900/60 backdrop-blur-sm">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
-              Cartera Total Proyectada
+              Capital Colocado Total
             </h3>
-            <p className="text-3xl font-black text-neutral-200 tracking-tight">
-              ${formatMoney(totalPortfolioValue)}
+            <p className="text-2xl font-black text-purple-400 tracking-tight">
+              ${formatMoney(totalLoanedAmount)}
             </p>
           </div>
+
+          {/* 3. Saldo Pendiente Total (Azul / Cartera a Cobrar) */}
+          <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-blue-500 bg-neutral-900/60 backdrop-blur-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Saldo Pendiente Total
+            </h3>
+            <p className="text-2xl font-black text-blue-400 tracking-tight">
+              ${formatMoney(totalPendingAmount)}
+            </p>
+          </div>
+
+          {/* 4. Capital Vencido (Rojo / Alerta de Mora) */}
+          <div className="p-5 rounded-2xl border border-neutral-800 border-l-4 border-l-rose-600 bg-neutral-900/60 backdrop-blur-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Capital Vencido
+            </h3>
+            <p className="text-2xl font-black text-rose-500 tracking-tight">
+              ${formatMoney(totalOverdueCapital)}
+            </p>
+          </div>
+
         </div>
 
         <LoanForm
@@ -375,7 +434,6 @@ export default function LoansPage() {
           initialData={refinanceInitialData}
         />
 
-        {/* --- MODAL DE ÉXITO QUE NO SE CIERRA SOLO --- */}
         <LoanSuccessModal
           isOpen={isSuccessModalOpen}
           successLoanData={successLoanData}
