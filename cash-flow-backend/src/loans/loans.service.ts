@@ -6,6 +6,11 @@ import { PrismaService } from '../prisma/prisma.service';
 export class LoansService {
   constructor(private prisma: PrismaService) {}
 
+  // Helper nativo para generar un ID corto de 8 caracteres (alfanumérico limpio)
+  private generateShortId(): string {
+    return Math.random().toString(36).substring(2, 10);
+  }
+
   async create(createLoanDto: CreateLoanDto) {
     // Extraemos las banderas de refinanciación y los datos habituales del DTO
     const { 
@@ -19,9 +24,10 @@ export class LoansService {
       ...restData 
     } = createLoanDto as any;
 
-    // 1. Creamos el nuevo préstamo en la base de datos
+    // 1. Creamos el nuevo préstamo en la base de datos inyectando el ID corto
     const loan = await this.prisma.loan.create({
       data: {
+        id: this.generateShortId(), // <-- Acá se genera el ID corto de 8 caracteres (ej: "4k9z8x1m")
         ...restData,
         amount,
         paymentMethod,
@@ -57,7 +63,7 @@ export class LoansService {
         amount: Number(amount),
         paymentMethod: paymentMethod,
         loanId: loan.id,
-        description: `Desembolso de préstamo - ID: ${loan.id.slice(-6)}`,
+        description: `Desembolso de préstamo - ID: ${loan.id}`,
       },
     });
 
