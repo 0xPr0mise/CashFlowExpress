@@ -94,12 +94,12 @@ export default function CashTable({ movements, filter, setFilter }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5 sm:space-y-4">
       {/* Cabecera, Pestañas de Tipo y Botón de Excel */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-neutral-900/60 border border-neutral-800 p-4 rounded-2xl backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 bg-neutral-900/60 border border-neutral-800 p-3.5 sm:p-4 rounded-2xl backdrop-blur-sm">
         
         {/* Filtros de Tipo (Todos / Ingresos / Egresos) */}
-        <div className="flex items-center gap-1.5 bg-black/60 p-1 border border-neutral-800 rounded-xl">
+        <div className="grid grid-cols-3 sm:flex items-center gap-1.5 bg-black/60 p-1 border border-neutral-800 rounded-xl">
           {["TODOS", "INGRESO", "EGRESO"].map((f) => (
             <button
               key={f}
@@ -107,7 +107,7 @@ export default function CashTable({ movements, filter, setFilter }) {
                 setFilter(f);
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
                 filter === f ? "bg-red-600 text-white shadow-md shadow-red-950/50" : "text-neutral-400 hover:text-white"
               }`}
             >
@@ -119,9 +119,9 @@ export default function CashTable({ movements, filter, setFilter }) {
         {/* Botón de Exportación XLSX */}
         <button
           onClick={exportToExcel}
-          className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-950/50 cursor-pointer flex items-center justify-center gap-2"
+          className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold px-4 py-2.5 sm:py-2 rounded-xl transition-all shadow-lg shadow-emerald-950/50 cursor-pointer flex items-center justify-center gap-2 active:scale-95"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
           </svg>
           Exportar Planilla (XLSX)
@@ -129,56 +129,60 @@ export default function CashTable({ movements, filter, setFilter }) {
       </div>
 
       {/* Barra de Filtros por Método de Pago / Canal */}
-      <div className="flex flex-wrap items-center gap-2 bg-neutral-900/40 border border-neutral-800 p-3 rounded-2xl text-xs">
-        <span className="text-neutral-400 font-semibold uppercase tracking-wider mr-2">Canal / Método:</span>
-        {["TODOS", "EFECTIVO", "TRANSFERENCIA"].map((method) => (
-          <button
-            key={method}
-            onClick={() => {
-              setMethodFilter(method);
-              setCurrentPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-              methodFilter === method
-                ? "bg-amber-500 text-black font-bold shadow"
-                : "bg-neutral-800/80 text-neutral-400 hover:text-white hover:bg-neutral-800"
-            }`}
-          >
-            {method === "TODOS" ? "Todos los canales" : method}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 bg-neutral-900/40 border border-neutral-800 p-3.5 rounded-2xl text-xs">
+        <span className="text-neutral-400 font-semibold uppercase tracking-wider">Canal / Método:</span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {["TODOS", "EFECTIVO", "TRANSFERENCIA"].map((method) => (
+            <button
+              key={method}
+              onClick={() => {
+                setMethodFilter(method);
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-2 sm:py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                methodFilter === method
+                  ? "bg-amber-500 text-black font-bold shadow"
+                  : "bg-neutral-800/80 text-neutral-400 hover:text-white hover:bg-neutral-800"
+              }`}
+            >
+              {method === "TODOS" ? "Todos los canales" : method}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Barra de Filtros Temporales (Hoy, Esta Semana, Este Mes, Histórico, Calendario) */}
-      <div className="flex flex-wrap items-center gap-2 bg-neutral-900/40 border border-neutral-800 p-3 rounded-2xl text-xs">
-        <span className="text-neutral-400 font-semibold uppercase tracking-wider mr-2">Filtrar por Fecha:</span>
-        {[
-          { id: "ALL", label: "Histórico" },
-          { id: "TODAY", label: "Hoy" },
-          { id: "THIS_WEEK", label: "Esta Semana" },
-          { id: "THIS_MONTH", label: "Este Mes" },
-          { id: "CUSTOM", label: "Calendario (Desde / Hasta)" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setDateFilterType(tab.id);
-              setCurrentPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
-              dateFilterType === tab.id
-                ? "bg-neutral-200 text-black shadow"
-                : "bg-neutral-800/80 text-neutral-400 hover:text-white hover:bg-neutral-800"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Barra de Filtros Temporales */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 bg-neutral-900/40 border border-neutral-800 p-3.5 rounded-2xl text-xs">
+        <span className="text-neutral-400 font-semibold uppercase tracking-wider">Filtrar por Fecha:</span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { id: "ALL", label: "Histórico" },
+            { id: "TODAY", label: "Hoy" },
+            { id: "THIS_WEEK", label: "Esta Semana" },
+            { id: "THIS_MONTH", label: "Este Mes" },
+            { id: "CUSTOM", label: "Calendario" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setDateFilterType(tab.id);
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-2 sm:py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                dateFilterType === tab.id
+                  ? "bg-neutral-200 text-black shadow"
+                  : "bg-neutral-800/80 text-neutral-400 hover:text-white hover:bg-neutral-800"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Inputs de Calendario Personalizado si está activo */}
       {dateFilterType === "CUSTOM" && (
-        <div className="flex flex-col sm:flex-row items-center gap-4 bg-neutral-900/90 border border-neutral-800 p-4 rounded-2xl shadow-xl animate-fadeIn">
+        <div className="flex flex-col sm:flex-row items-center gap-3.5 bg-neutral-900/90 border border-neutral-800 p-3.5 sm:p-4 rounded-2xl shadow-xl animate-fadeIn">
           <div className="w-full sm:w-1/2 space-y-1">
             <label className="block text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Desde:</label>
             <input
@@ -188,7 +192,7 @@ export default function CashTable({ movements, filter, setFilter }) {
                 setCustomRange({ ...customRange, startDate: e.target.value });
                 setCurrentPage(1);
               }}
-              className="w-full bg-black border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600 cursor-pointer [color-scheme:dark]"
+              className="w-full bg-black border border-neutral-800 rounded-xl px-3 py-2.5 sm:py-2 text-xs text-white focus:outline-none focus:border-red-600 cursor-pointer [color-scheme:dark]"
             />
           </div>
           <div className="w-full sm:w-1/2 space-y-1">
@@ -200,96 +204,148 @@ export default function CashTable({ movements, filter, setFilter }) {
                 setCustomRange({ ...customRange, endDate: e.target.value });
                 setCurrentPage(1);
               }}
-              className="w-full bg-black border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600 cursor-pointer [color-scheme:dark]"
+              className="w-full bg-black border border-neutral-800 rounded-xl px-3 py-2.5 sm:py-2 text-xs text-white focus:outline-none focus:border-red-600 cursor-pointer [color-scheme:dark]"
             />
           </div>
         </div>
       )}
 
-      {/* Tabla de Datos */}
+      {/* Contenedor Principal de Datos */}
       <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl backdrop-blur-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-neutral-800 text-xs uppercase tracking-wider text-neutral-400 bg-black/40">
-                <th className="p-4">Fecha y Hora</th>
-                <th className="p-4">Tipo</th>
-                <th className="p-4">Categoría</th>
-                <th className="p-4">Método de Pago</th>
-                <th className="p-4">Descripción</th>
-                <th className="p-4 text-right">Monto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60 text-sm">
-              {paginatedMovements.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-12 text-neutral-500">
-                    No hay movimientos registrados para los filtros seleccionados.
-                  </td>
-                </tr>
-              ) : (
-                paginatedMovements.map((mov) => (
-                  <tr key={mov.id} className="hover:bg-neutral-800/30 transition-colors">
-                    <td className="p-4 text-neutral-400 text-xs">
+        
+        {paginatedMovements.length === 0 ? (
+          <div className="text-center py-12 text-neutral-500 text-xs sm:text-sm">
+            No hay movimientos registrados para los filtros seleccionados.
+          </div>
+        ) : (
+          <>
+            {/* VISTA MÓVIL: Tarjetas apiladas (Sin scroll horizontal) */}
+            <div className="block sm:hidden divide-y divide-neutral-800/60">
+              {paginatedMovements.map((mov) => (
+                <div key={mov.id} className="p-4 space-y-3 hover:bg-neutral-800/20 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border ${
+                        mov.type === "INGRESO"
+                          ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
+                          : "bg-red-950/40 text-red-400 border-red-900/40"
+                      }`}
+                    >
+                      {mov.type}
+                    </span>
+                    <span className="text-neutral-400 text-[11px]">
                       {new Date(mov.createdAt).toLocaleString()}
-                    </td>
-                    <td className="p-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border ${
-                          mov.type === "INGRESO"
-                            ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
-                            : "bg-red-950/40 text-red-400 border-red-900/40"
-                        }`}
-                      >
-                        {mov.type}
-                      </span>
-                    </td>
-                    <td className="p-4 font-semibold text-white">
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-white text-sm">
                       {formatCategoryLabel(mov.category)}
-                    </td>
-                    <td className="p-4">
-                      <span className="bg-neutral-800 px-2.5 py-1 rounded-md text-neutral-200 font-mono text-xs border border-neutral-700/50">
-                        {mov.paymentMethod || "EFECTIVO"}
-                      </span>
-                    </td>
-                    <td className="p-4 text-neutral-400">
-                      {mov.description || "-"}
-                    </td>
-                    <td
-                      className={`p-4 text-right font-black tracking-tight ${
+                    </span>
+                    <span className="bg-neutral-800 px-2.5 py-1 rounded-md text-neutral-200 font-mono text-xs border border-neutral-700/50">
+                      {mov.paymentMethod || "EFECTIVO"}
+                    </span>
+                  </div>
+
+                  {mov.description && (
+                    <p className="text-neutral-400 text-xs bg-black/30 p-2.5 rounded-xl border border-neutral-800/50">
+                      {mov.description}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1 border-t border-neutral-800/40">
+                    <span className="text-neutral-400 text-xs">Monto:</span>
+                    <span
+                      className={`text-base font-black tracking-tight ${
                         mov.type === "INGRESO" ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
                       {mov.type === "INGRESO" ? "+" : "-"}${Number(mov.amount || 0).toFixed(2)}
-                    </td>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* VISTA ESCRITORIO: Tabla tradicional */}
+            <div className="hidden sm:block overflow-x-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-neutral-800 text-xs uppercase tracking-wider text-neutral-400 bg-black/40">
+                    <th className="p-4">Fecha y Hora</th>
+                    <th className="p-4">Tipo</th>
+                    <th className="p-4">Categoría</th>
+                    <th className="p-4">Método de Pago</th>
+                    <th className="p-4">Descripción</th>
+                    <th className="p-4 text-right">Monto</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-neutral-800/60 text-sm">
+                  {paginatedMovements.map((mov) => (
+                    <tr key={mov.id} className="hover:bg-neutral-800/30 transition-colors">
+                      <td className="p-4 text-neutral-400 text-xs whitespace-nowrap">
+                        {new Date(mov.createdAt).toLocaleString()}
+                      </td>
+                      <td className="p-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border ${
+                            mov.type === "INGRESO"
+                              ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
+                              : "bg-red-950/40 text-red-400 border-red-900/40"
+                          }`}
+                        >
+                          {mov.type}
+                        </span>
+                      </td>
+                      <td className="p-4 font-semibold text-white whitespace-nowrap">
+                        {formatCategoryLabel(mov.category)}
+                      </td>
+                      <td className="p-4 whitespace-nowrap">
+                        <span className="bg-neutral-800 px-2.5 py-1 rounded-md text-neutral-200 font-mono text-xs border border-neutral-700/50">
+                          {mov.paymentMethod || "EFECTIVO"}
+                        </span>
+                      </td>
+                      <td className="p-4 text-neutral-400">
+                        {mov.description || "-"}
+                      </td>
+                      <td
+                        className={`p-4 text-right font-black tracking-tight whitespace-nowrap ${
+                          mov.type === "INGRESO" ? "text-emerald-400" : "text-red-400"
+                        }`}
+                      >
+                        {mov.type === "INGRESO" ? "+" : "-"}${Number(mov.amount || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         {/* Controles de Paginación */}
-        <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-neutral-800 bg-black/40 text-xs text-neutral-400 gap-3">
-          <div>
+        <div className="flex flex-col sm:flex-row items-center justify-between p-3.5 sm:p-4 border-t border-neutral-800 bg-black/40 text-xs text-neutral-400 gap-3">
+          <div className="text-center sm:text-left">
             Mostrando <span className="text-white font-semibold">{paginatedMovements.length}</span> de <span className="text-white font-semibold">{filteredMovements.length}</span> resultados filtrados
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
             <button
+              type="button"
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg bg-neutral-800 text-white font-semibold disabled:opacity-40 cursor-pointer transition-colors"
+              className="flex-1 sm:flex-none px-3.5 py-2 sm:py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-semibold disabled:opacity-40 cursor-pointer transition-colors active:scale-95 text-center"
             >
               Anterior
             </button>
-            <span className="px-3 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-white font-bold">
+            <span className="px-3.5 py-2 sm:py-1.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white font-bold whitespace-nowrap">
               {currentPage} / {totalPages || 1}
             </span>
             <button
+              type="button"
               onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages || totalPages === 0}
-              className="px-3 py-1.5 rounded-lg bg-neutral-800 text-white font-semibold disabled:opacity-40 cursor-pointer transition-colors"
+              className="flex-1 sm:flex-none px-3.5 py-2 sm:py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-semibold disabled:opacity-40 cursor-pointer transition-colors active:scale-95 text-center"
             >
               Siguiente
             </button>

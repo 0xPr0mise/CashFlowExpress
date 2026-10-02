@@ -47,72 +47,73 @@ export default function AnalyticsFilters({ onFilterChange, rawData }) {
   };
 
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-4 shadow-xl backdrop-blur-sm flex flex-col gap-3.5 w-full">
+    <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-3.5 shadow-xl backdrop-blur-sm flex flex-col lg:flex-row items-center justify-between gap-3 w-full">
       
-      {/* Fila 1: Botones de Filtro Rápido (con flex-wrap para evitar desbordes) */}
-      <div className="flex flex-wrap items-center gap-1.5 w-full">
+      {/* Bloque Izquierda: Períodos y Botones Rápidos */}
+      <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
         <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 mr-1 hidden sm:inline">
           Período:
         </span>
         
-        {[
-          { id: "today", label: "Hoy" },
-          { id: "week", label: "Esta semana" },
-          { id: "month", label: "Este mes" },
-          { id: "all", label: "Histórico" }
-        ].map((preset) => (
-          <button
-            key={preset.id}
-            onClick={() => handlePreset(preset.id)}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all border cursor-pointer flex-1 sm:flex-initial text-center ${
-              activePreset === preset.id
-                ? "bg-red-600 text-white border-red-500 shadow-md shadow-red-950/50"
-                : "bg-black/50 text-neutral-300 border-neutral-800 hover:border-neutral-700 hover:text-white"
-            }`}
-          >
-            {preset.label}
-          </button>
-        ))}
+        <div className="flex items-center gap-1.5 w-full sm:w-auto">
+          {[
+            { id: "today", label: "Hoy" },
+            { id: "week", label: "Esta semana" },
+            { id: "month", label: "Este mes" },
+            { id: "all", label: "Histórico" }
+          ].map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => handlePreset(preset.id)}
+              className={`px-3 py-2 rounded-xl text-[11px] font-semibold transition-all border cursor-pointer flex-1 sm:flex-initial text-center ${
+                activePreset === preset.id
+                  ? "bg-red-600 text-white border-red-500 shadow-md shadow-red-950/50"
+                  : "bg-black/50 text-neutral-300 border-neutral-800 hover:border-neutral-700 hover:text-white"
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Fila 2: Selectores de Calendario y Botón de Excel */}
-      <div className="flex flex-col gap-2.5 pt-2.5 border-t border-neutral-800/80">
+      {/* Bloque Derecha: Selectores de Fecha + Botón de Exportar alineados en línea en PC */}
+      <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full lg:w-auto">
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-          {/* Input Desde */}
-          <div className="flex items-center justify-between bg-black/50 border border-neutral-800 hover:border-neutral-700 px-3 py-2 rounded-xl transition-all cursor-pointer">
-            <span className="text-[10px] text-neutral-400 uppercase font-semibold shrink-0">Desde:</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-              onClick={(e) => e.target.showPicker && e.target.showPicker()}
-              className="bg-transparent text-[11px] text-neutral-200 focus:outline-none cursor-pointer [color-scheme:dark] text-right w-full"
-            />
-          </div>
+        {/* Input Desde */}
+        <div className="flex items-center justify-between bg-black/50 border border-neutral-800 hover:border-neutral-700 px-3 py-2 rounded-xl transition-all cursor-pointer w-full sm:w-40">
+          <span className="text-[10px] text-neutral-400 uppercase font-semibold shrink-0 mr-2">Desde:</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
+            onClick={(e) => e.target.showPicker && e.target.showPicker()}
+            className="bg-transparent text-[11px] text-neutral-200 focus:outline-none cursor-pointer [color-scheme:dark] text-right w-full"
+          />
+        </div>
 
-          {/* Input Hasta */}
-          <div className="flex items-center justify-between bg-black/50 border border-neutral-800 hover:border-neutral-700 px-3 py-2 rounded-xl transition-all cursor-pointer">
-            <span className="text-[10px] text-neutral-400 uppercase font-semibold shrink-0">Hasta:</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-              onClick={(e) => e.target.showPicker && e.target.showPicker()}
-              className="bg-transparent text-[11px] text-neutral-200 focus:outline-none cursor-pointer [color-scheme:dark] text-right w-full"
-            />
-          </div>
+        {/* Input Hasta */}
+        <div className="flex items-center justify-between bg-black/50 border border-neutral-800 hover:border-neutral-700 px-3 py-2 rounded-xl transition-all cursor-pointer w-full sm:w-40">
+          <span className="text-[10px] text-neutral-400 uppercase font-semibold shrink-0 mr-2">Hasta:</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
+            onClick={(e) => e.target.showPicker && e.target.showPicker()}
+            className="bg-transparent text-[11px] text-neutral-200 focus:outline-none cursor-pointer [color-scheme:dark] text-right w-full"
+          />
         </div>
 
         {/* Botón de Exportar XLSX */}
         <button
           onClick={exportToExcel}
-          className="flex items-center justify-center gap-1.5 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/50 transition-all cursor-pointer"
+          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/50 transition-all cursor-pointer whitespace-nowrap w-full sm:w-auto"
           title="Descargar reporte en formato XLSX"
         >
           <span>📥</span>
-          <span>Exportar Reporte XLSX</span>
+          <span>Exportar XLSX</span>
         </button>
+
       </div>
 
     </div>

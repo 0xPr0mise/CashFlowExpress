@@ -107,18 +107,30 @@ export default function AnalyticsPage() {
     totalLateAmount,
   };
 
+  const formatMoney = (amount) => {
+    const rounded = Math.round(amount || 0);
+    return rounded.toLocaleString("es-AR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  };
+
+  const numericCash = Number(cashBalance) || 0;
+  const isNegative = numericCash < 0;
+
   return (
-    // pb-40 garantiza un colchón de espacio inferior gigante para que el contenido jamás llegue a la altura del dock flotante
-    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white pb-40 md:pb-12">
+    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white pb-32 md:pb-12 w-full">
       
-      {/* HEADER Y FILTROS FIJOS */}
-      <div className="relative lg:sticky lg:top-0 z-20 bg-black/95 backdrop-blur-xl border-b border-neutral-800/80 px-4 sm:px-6 md:px-10 py-4 shadow-2xl">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      {/* HEADER Y FILTROS FIJOS (Ocupa todo el ancho disponible con padding lateral fluido) */}
+      <div className="relative lg:sticky lg:top-0 z-20 bg-black/95 backdrop-blur-xl border-b border-neutral-800/80 px-4 sm:px-6 lg:px-8 py-4 shadow-2xl w-full">
+        <div className="w-full flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           
+          {/* Título y subtítulo */}
           <div className="w-full lg:w-auto">
             <AnalyticsHeader />
           </div>
 
+          {/* Tarjetas de KPIs */}
           <div className="w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
             <div className="min-w-max lg:min-w-0 lg:origin-right">
               <AnalyticsKpiGrid stats={currentData} calculations={calculations} />
@@ -126,16 +138,36 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto mt-3">
+        <div className="w-full mt-3">
           <AnalyticsFilters onFilterChange={handleFilterChange} rawData={currentData} />
         </div>
       </div>
 
-      {/* CONTENIDO PRINCIPAL DESPLAZABLE */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-6 md:space-y-8">
+      {/* CONTENIDO PRINCIPAL DESPLAZABLE (Ocupa todo el ancho con padding simétrico) */}
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 md:py-10 space-y-6 md:space-y-8">
+        
+        {/* Alerta de posición consolidada si aplica */}
+        {isNegative && (
+          <div className="bg-red-950/60 border border-red-500/80 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-xl animate-pulse w-full">
+            <div className="flex items-center gap-3">
+              <span className="p-2 bg-red-900 text-red-300 rounded-xl border border-red-700 text-sm">⚠</span>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-red-400">Atención: Posición Consolidada Negativa</h4>
+                <p className="text-xs text-neutral-200 mt-0.5">
+                  Se detectó un saldo en rojo de ${formatMoney(numericCash)}. Es necesario <strong className="text-white underline">conciliar caja</strong>.
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] sm:text-xs font-mono font-bold uppercase bg-red-600 text-white px-3 py-1.5 rounded-xl shadow whitespace-nowrap cursor-pointer hover:bg-red-500 transition-colors">
+              Conciliar
+            </span>
+          </div>
+        )}
+
         <AnalyticsCharts stats={currentData} calculations={calculations} />
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráficos */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
           <CapitalGrowthChart loans={loansArray} />
           <CashFlowChart 
             movements={movementsArray} 
