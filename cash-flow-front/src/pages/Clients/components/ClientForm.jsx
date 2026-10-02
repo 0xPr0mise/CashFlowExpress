@@ -10,13 +10,15 @@ export default function ClientForm({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-fadeIn">
+      {/* Contenedor principal: En mobile ocupa toda la pantalla abajo (sheet style) y en desktop es un modal centrado */}
+      <div className="relative w-full sm:max-w-2xl bg-neutral-900 border-t sm:border border-neutral-800 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+        
         {/* Cabecera del Modal */}
         <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <svg
-              className="w-5 h-5 text-red-500"
+              className="w-5 h-5 text-red-500 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -33,7 +35,7 @@ export default function ClientForm({
           <button
             type="button"
             onClick={onClose}
-            className="text-neutral-400 hover:text-white text-xs font-bold px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg cursor-pointer transition-colors"
+            className="text-neutral-400 hover:text-white text-xs font-bold px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-xl cursor-pointer transition-colors"
           >
             ✕ Cerrar
           </button>
@@ -41,9 +43,12 @@ export default function ClientForm({
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Grid responsivo: 1 columna por defecto en móvil, 2 columnas en sm en adelante */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+            
+            {/* Nombre y Apellido */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+              <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
                 Nombre y Apellido *
               </label>
               <input
@@ -53,28 +58,29 @@ export default function ClientForm({
                 value={form.name}
                 onChange={handleChange}
                 required
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 sm:py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 shadow-inner"
               />
             </div>
 
+            {/* Teléfono */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+              <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
                 Teléfono *
               </label>
               <input
-                type="text"
+                type="tel"
                 name="phone"
                 placeholder="Ej. 1123456789"
                 value={form.phone}
                 onChange={handleChange}
                 required
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 sm:py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 shadow-inner"
               />
             </div>
 
-            {/* DNI y Dirección juntos */}
+            {/* DNI */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+              <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
                 DNI
               </label>
               <input
@@ -83,12 +89,13 @@ export default function ClientForm({
                 placeholder="Ej. 35123456"
                 value={form.dni}
                 onChange={handleChange}
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 sm:py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 shadow-inner"
               />
             </div>
 
+            {/* Dirección */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+              <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
                 Dirección
               </label>
               <input
@@ -97,12 +104,13 @@ export default function ClientForm({
                 placeholder="Ej. Av. Siempre Viva 123"
                 value={form.address}
                 onChange={handleChange}
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 sm:py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 shadow-inner"
               />
             </div>
 
+            {/* Referencia de Ubicación */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+              <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
                 Referencia de Ubicación
               </label>
               <input
@@ -111,20 +119,20 @@ export default function ClientForm({
                 placeholder="Ej. Casa verde / Esquina"
                 value={form.reference}
                 onChange={handleChange}
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600"
+                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 sm:py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors placeholder:text-neutral-600 shadow-inner"
               />
             </div>
 
             {/* Cliente que Referencia */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+              <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
                 ¿Qué cliente lo refirió? (Opcional)
               </label>
               <select
                 name="referredById"
                 value={form.referredById}
                 onChange={handleChange}
-                className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 transition-colors cursor-pointer"
+                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 sm:py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors cursor-pointer shadow-inner"
               >
                 <option value="">-- Sin cliente referidor --</option>
                 {clients.map((client) => (
@@ -136,18 +144,19 @@ export default function ClientForm({
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-neutral-800">
+          {/* Botones de acción adaptados a mobile (ancho completo y apilados o en fila cómoda) */}
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-neutral-800">
             <button
               type="button"
               onClick={onClose}
-              className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold px-5 py-2.5 rounded-xl text-sm transition-all cursor-pointer"
+              className="w-full sm:w-auto bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold px-5 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer disabled:opacity-50"
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold px-6 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-red-950/50 cursor-pointer disabled:opacity-50"
             >
               {loading ? "Guardando..." : "Guardar Cliente"}
             </button>

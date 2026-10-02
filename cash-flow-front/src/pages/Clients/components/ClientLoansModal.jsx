@@ -482,44 +482,45 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
   });
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-200">
-      <div className="bg-neutral-900 border border-neutral-800/90 rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 z-[9999] animate-in fade-in duration-200">
+      {/* Contenedor principal adaptable: ancho completo abajo en mobile, tarjeta centrada en pantallas medianas */}
+      <div className="bg-neutral-900 border-t sm:border border-neutral-800/90 rounded-t-2xl sm:rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl flex flex-col h-[90vh] sm:max-h-[90vh]">
         
         {/* Cabecera del Modal */}
-        <div className="p-6 border-b border-neutral-800 flex items-center justify-between bg-black/30 flex-shrink-0">
+        <div className="p-4 sm:p-6 border-b border-neutral-800 flex items-center justify-between bg-black/30 flex-shrink-0">
           <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
               Detalle de Cartera y Recibos
             </span>
-            <h3 className="text-xl font-extrabold text-white tracking-tight mt-0.5">
+            <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight mt-0.5 truncate max-w-[260px] sm:max-w-none">
               {selectedClient.name}
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
             title="Cerrar"
           >
             ✕
           </button>
         </div>
 
-        {/* Resumen Rápido y Filtro */}
-        <div className="px-6 py-3.5 bg-neutral-950/70 border-b border-neutral-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs flex-shrink-0">
-          <span className="text-neutral-400">
-            Total Pendiente General:{" "}
-            <strong className="text-amber-400 font-black text-sm">
+        {/* Resumen Rápido y Filtro (Apilado en móvil, en línea en sm+) */}
+        <div className="px-4 sm:px-6 py-3 bg-neutral-950/70 border-b border-neutral-800/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs flex-shrink-0">
+          <span className="text-neutral-400 flex items-center justify-between sm:justify-start gap-2">
+            Total Pendiente:{" "}
+            <strong className="text-amber-400 font-black text-sm sm:text-base">
               ${formatMoney(totalClientPending)}
             </strong>
           </span>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-neutral-400 text-[11px] uppercase font-semibold">Filtrar:</span>
+            <span className="text-neutral-400 text-[11px] uppercase font-semibold flex-shrink-0">Filtrar:</span>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-neutral-900 border border-neutral-700/60 rounded-lg px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-red-600 transition-colors cursor-pointer font-medium"
+              className="bg-neutral-900 border border-neutral-700/60 rounded-lg px-3 py-2 sm:py-1.5 text-white text-xs focus:outline-none focus:border-red-600 transition-colors cursor-pointer font-medium w-full sm:w-auto"
             >
               <option value="TODOS">Todos ({loansList.length})</option>
               <option value="ACTIVO">Activos</option>
@@ -532,7 +533,7 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
         </div>
 
         {/* Listado con Scroll Armonioso */}
-        <div className="p-6 overflow-y-auto space-y-4 flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-neutral-950 [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600 transition-all">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-neutral-950 [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full">
           {filteredLoans.length === 0 ? (
             <div className="text-center py-12 space-y-2">
               <div className="w-12 h-12 rounded-full bg-neutral-800/60 border border-neutral-700/50 flex items-center justify-center mx-auto text-lg text-neutral-400">
@@ -566,7 +567,7 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
               return (
                 <div
                   key={loan.id}
-                  className="bg-neutral-800/40 border border-neutral-800 hover:border-neutral-700/80 p-4 rounded-xl transition-all space-y-3 shadow-inner"
+                  className="bg-neutral-800/40 border border-neutral-800 hover:border-neutral-700/80 p-3.5 sm:p-4 rounded-xl transition-all space-y-3 shadow-inner"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-mono text-neutral-400 bg-neutral-800 px-2.5 py-1 rounded-md border border-neutral-700/50">
@@ -585,7 +586,7 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-neutral-800/60 text-xs">
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-neutral-800/60 text-xs">
                     <div>
                       <span className="text-neutral-500 block mb-0.5">
                         Monto Total / A Pagar
@@ -605,24 +606,24 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
                   </div>
 
                   {/* Botón para descargar el recibo de Préstamo con settings dinámicos */}
-                  <div className="pt-2">
+                  <div className="pt-1">
                     <button
                       type="button"
                       onClick={() => downloadLoanDisbursementAsImage(loan, selectedClient.name, settings)}
-                      className="w-full bg-neutral-800 hover:bg-neutral-700 text-emerald-400 border border-neutral-700 hover:border-emerald-700/60 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full bg-neutral-800 hover:bg-neutral-700 text-emerald-400 border border-neutral-700 hover:border-emerald-700/60 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                       title="Descargar comprobante de aprobación y entrega de este préstamo"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
                       </svg>
-                      Descargar Recibo de Préstamo (Entrega)
+                      <span>Descargar Recibo de Préstamo (Entrega)</span>
                     </button>
                   </div>
 
                   {/* Sección de Historial de Recibos de Pagos */}
                   <div className="pt-3 border-t border-neutral-800/60">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
-                      Historial de Recibos de Pagos ({paymentsList.length})
+                      Historial de Pagos ({paymentsList.length})
                     </span>
 
                     {paymentsList.length === 0 ? (
@@ -630,7 +631,7 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
                         No hay pagos registrados para este préstamo todavía.
                       </p>
                     ) : (
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-neutral-950 [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-neutral-950 [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full">
                         {paymentsList.map((payment, idx) => {
                           const paymentAmount = Number(payment.amount ?? payment.monto ?? payment.valor ?? payment.cuota ?? 0);
                           const paymentDate = payment.createdAt || payment.date || payment.fecha;
@@ -639,7 +640,7 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
                           return (
                             <div 
                               key={payment.id || idx}
-                              className="flex items-center justify-between bg-neutral-900/60 border border-neutral-800/60 px-3 py-2 rounded-lg text-xs"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between bg-neutral-900/60 border border-neutral-800/60 p-2.5 sm:px-3 sm:py-2 rounded-xl text-xs gap-2"
                             >
                               <div className="space-y-0.5">
                                 <span className="text-neutral-200 font-medium block">
@@ -650,17 +651,17 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
                                 </span>
                               </div>
 
-                              {/* Botón para descargar recibo de pago individual con settings dinámicos */}
+                              {/* Botón para descargar recibo de pago individual */}
                               <button
                                 type="button"
                                 onClick={() => downloadExistingPaymentReceipt(payment, loan, selectedClient.name, settings)}
-                                className="bg-neutral-800 hover:bg-emerald-950 text-neutral-300 hover:text-emerald-400 border border-neutral-700 hover:border-emerald-800 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer"
+                                className="bg-neutral-800 hover:bg-emerald-950 text-neutral-300 hover:text-emerald-400 border border-neutral-700 hover:border-emerald-800 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-xs sm:text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                                 title="Descargar comprobante de este pago"
                               >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
                                 </svg>
-                                Recibo
+                                <span>Descargar Recibo</span>
                               </button>
                             </div>
                           );
@@ -676,12 +677,12 @@ export default function ClientLoansModal({ isOpen, onClose, selectedClient, sett
         </div>
 
         {/* Pie del Modal */}
-        <div className="p-4 border-t border-neutral-800 bg-black/20 flex-shrink-0">
+        <div className="p-3 sm:p-4 border-t border-neutral-800 bg-black/20 flex-shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-semibold py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-lg"
-          >
+            className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-semibold py-3 sm:py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-lg active:scale-98">
+
             Cerrar Ventana
           </button>
         </div>
