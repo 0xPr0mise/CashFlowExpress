@@ -1,11 +1,24 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
-export default function CashFlowChart({ movements = [] }) {
+export default function CashFlowChart({ movements = [], loans = [], currentCashBalance = 0 }) {
   const [viewMode, setViewMode] = useState("day"); // "day" | "week" | "month"
-  const [dayRange, setDayRange] = useState(14); // Rango dinámico de días para el zoom
-  const [showDaySlider, setShowDaySlider] = useState(false); // Controla la visibilidad del slider en modo "Días"
+  const [dayRange, setDayRange] = useState(14);
+  const [showDaySlider, setShowDaySlider] = useState(false);
+  const [selectedPointIndex, setSelectedPointIndex] = useState(null);
+
+  // Cerrar el popup si se hace clic fuera del gráfico
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".chart-container")) {
+        setSelectedPointIndex(null);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const handleViewModeChange = (mode) => {
+    setSelectedPointIndex(null);
     if (mode === "day") {
       if (viewMode === "day") {
         setShowDaySlider((prev) => !prev);
@@ -20,43 +33,91 @@ export default function CashFlowChart({ movements = [] }) {
   };
 
   const chartData = useMemo(() => {
-    if (!Array.isArray(movements) || movements.length === 0) return [];
+    const timelineMap = {};
+    const nowTime = new Date().setHours(0, 0, 0, 0);
 
-    const events = [];
+    // 1. Procesar Movimientos de Caja (Ingresos y Egresos reales)
+    if (Array.isArray(movements)) {
+      movements.forEach((mov) => {
+        const rawDate = mov.createdAt || mov.date || mov.fecha;
+        const amount = Number(mov.amount) || Number(mov.monto) || 0;
+        const type = (mov.type || mov.tipo || "").toUpperCase();
+        
+        const isExpense = type === 'EGRESO' || type === 'OUTFLOW' || type === 'EXPENSE' || type === 'WITHDRAWAL' || amount < 0;
+        const isIncome = type === 'INGRESO' || type === 'INCOME' || type === 'DEPOSIT' || amount > 0;
+        const absAmount = Math.abs(amount);
 
-    movements.forEach((mov) => {
-      const rawDate = mov.createdAt || mov.date || mov.fecha;
-      const amount = Number(mov.amount) || Number(mov.monto) || 0;
-      // Asumimos que el movimiento tiene un tipo: 'INGRESO' / 'INCOME' o 'EGRESO' / 'EXPENSE' / 'GASTO'
-      const type = (mov.type || mov.tipo || "").toUpperCase();
-      
-      const isIncome = type === 'INGRESO' || type === 'INCOME' || type === 'DEPOSIT' || amount > 0;
-      const absAmount = Math.abs(amount);
+        if (!rawDate || absAmount === 0) return;
+        const dateObj = new Date(rawDate);
+        if (isNaN(dateObj.getTime())) return;
 
-      if (!rawDate || absAmount === 0) return;
+        const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-      const dateObj = new Date(rawDate);
-      if (isNaN(dateObj.getTime())) return;
+        if (!timelineMap[key]) {
+          timelineMap[key] = {
+            timestamp: d.getTime(),
+            dateObj: d,
+            dailyIncome: 0,
+            dailyExpense: 0,
+            futureIncome: 0,
+          };
+        }
 
-      events.push({
-        timestamp: dateObj.getTime(),
-        dateObj: new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()),
-        incomeDelta: isIncome ? absAmount : 0,
-        expenseDelta: !isIncome ? absAmount : 0,
+        if (isExpense) {
+          timelineMap[key].dailyExpense += absAmount;
+        } else if (isIncome) {
+          timelineMap[key].dailyIncome += absAmount;
+        }
       });
+    }
+
+    // 2. Procesar Préstamos (Capital Proyectado Futuro)
+    if (Array.isArray(loans)) {
+      loans.forEach((loan) => {
+        if (loan.status === 'REFINANCIADO') return;
+
+        const paidSum = (loan.payments || []).reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const totalToPay = Number(loan.totalToPay) || Number(loan.totalAmount) || 0;
+        const pendingAmount = Math.max(0, totalToPay - paidSum);
+
+        if (pendingAmount > 0 && loan.dueDate) {
+          const dueDateObj = new Date(loan.dueDate);
+          if (!isNaN(dueDateObj.getTime())) {
+            const d = new Date(dueDateObj.getFullYear(), dueDateObj.getMonth(), dueDateObj.getDate());
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+            if (!timelineMap[key]) {
+              timelineMap[key] = {
+                timestamp: d.getTime(),
+                dateObj: d,
+                dailyIncome: 0,
+                dailyExpense: 0,
+                futureIncome: 0,
+              };
+            }
+            timelineMap[key].futureIncome += pendingAmount;
+          }
+        }
+      });
+    }
+
+    let rawArray = Object.values(timelineMap);
+    if (rawArray.length === 0) return [];
+
+    rawArray.sort((a, b) => a.timestamp - b.timestamp);
+
+    // 3. Reconstrucción histórica basada en caja actual
+    const aggregatedMap = {};
+    let totalNetDelta = 0;
+    rawArray.forEach((item) => {
+      totalNetDelta += (item.dailyIncome - item.dailyExpense);
     });
 
-    if (events.length === 0) return [];
+    let runningCashBalance = Number(currentCashBalance) - totalNetDelta;
 
-    events.sort((a, b) => a.timestamp - b.timestamp);
-
-    let accumulatedBalance = 0;
-    let accumulatedIncome = 0;
-    let accumulatedExpense = 0;
-    const timelineMap = {};
-
-    events.forEach((ev) => {
-      const d = ev.dateObj;
+    rawArray.forEach((item) => {
+      const d = item.dateObj;
       let key = "";
       let label = "";
 
@@ -79,40 +140,31 @@ export default function CashFlowChart({ movements = [] }) {
         label = d.toLocaleDateString("es-AR", { month: "short", year: "numeric" });
       }
 
-      const deltaInc = ev.incomeDelta || 0;
-      const deltaExp = ev.expenseDelta || 0;
-      const netDelta = deltaInc - deltaExp;
+      const netDelta = item.dailyIncome - item.dailyExpense;
+      runningCashBalance += netDelta;
 
-      accumulatedBalance += netDelta;
-      accumulatedIncome += deltaInc;
-      accumulatedExpense += deltaExp;
-
-      if (timelineMap[key]) {
-        timelineMap[key].balance = accumulatedBalance;
-        timelineMap[key].totalIngresos = accumulatedIncome;
-        timelineMap[key].totalEgresos = accumulatedExpense;
-        timelineMap[key].periodDeltaInc += deltaInc;
-        timelineMap[key].periodDeltaExp += deltaExp;
+      if (aggregatedMap[key]) {
+        aggregatedMap[key].cajaActual = runningCashBalance;
+        aggregatedMap[key].ingresosDiarios += item.dailyIncome;
+        aggregatedMap[key].egresosDiarios += item.dailyExpense;
+        aggregatedMap[key].ingresosFuturos += item.futureIncome;
       } else {
-        timelineMap[key] = {
+        aggregatedMap[key] = {
           period: label.charAt(0).toUpperCase() + label.slice(1),
           timestamp: new Date(key).getTime() || d.getTime(),
-          balance: accumulatedBalance,
-          totalIngresos: accumulatedIncome,
-          totalEgresos: accumulatedExpense,
-          periodDeltaInc: deltaInc,
-          periodDeltaExp: deltaExp,
+          cajaActual: runningCashBalance,
+          ingresosDiarios: item.dailyIncome,
+          egresosDiarios: item.dailyExpense,
+          ingresosFuturos: item.futureIncome,
         };
       }
     });
 
-    let processedData = Object.values(timelineMap).sort((a, b) => a.timestamp - b.timestamp);
+    let processedData = Object.values(aggregatedMap).sort((a, b) => a.timestamp - b.timestamp);
 
     if (viewMode === "day") {
-      const todayTime = new Date().setHours(0, 0, 0, 0);
-      const futureIndex = processedData.findIndex(d => d.timestamp >= todayTime);
+      const futureIndex = processedData.findIndex(d => d.timestamp >= nowTime);
       const centerIndex = futureIndex !== -1 ? futureIndex : processedData.length - 1;
-      
       const halfRange = Math.floor(dayRange / 2);
       const start = Math.max(0, centerIndex - halfRange);
       const end = Math.min(processedData.length, start + dayRange);
@@ -124,7 +176,7 @@ export default function CashFlowChart({ movements = [] }) {
     }
 
     return processedData;
-  }, [movements, viewMode, dayRange]);
+  }, [movements, loans, currentCashBalance, viewMode, dayRange]);
 
   const formatMoney = (value) => {
     if (value === undefined || value === null || isNaN(value)) return "$0";
@@ -137,10 +189,9 @@ export default function CashFlowChart({ movements = [] }) {
 
   const maxVal = useMemo(() => {
     if (chartData.length === 0) return 100;
-    const maxBal = Math.max(...chartData.map((d) => d.balance), 0);
-    const maxInc = Math.max(...chartData.map((d) => d.totalIngresos), 0);
-    const maxExp = Math.max(...chartData.map((d) => d.totalEgresos), 0);
-    return Math.max(maxBal, maxInc, maxExp, 100);
+    const maxCaja = Math.max(...chartData.map((d) => Math.abs(d.cajaActual)), 0);
+    const maxFut = Math.max(...chartData.map((d) => d.ingresosFuturos), 0);
+    return Math.max(maxCaja, maxFut, 100);
   }, [chartData]);
 
   const svgWidth = 750;
@@ -157,16 +208,14 @@ export default function CashFlowChart({ movements = [] }) {
   };
 
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-5">
+    <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-5 chart-container relative">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-neutral-800/80 pb-4">
         <div>
           <h3 className="text-base font-bold text-white flex items-center gap-2">
-            💰 Flujo de Caja y Movimientos en el Tiempo
+            💰 Caja Actual y Capital Proyectado
           </h3>
           <p className="text-xs text-neutral-400 mt-0.5">
-            {viewMode === 'day' && `Mostrando un rango dinámico de ${dayRange} días.`}
-            {viewMode === 'week' && 'Evolución semanal agrupada.'}
-            {viewMode === 'month' && 'Mostrando perspectiva de los últimos 3 a 4 meses.'}
+            Haz clic en cualquier punto del gráfico para ver el detalle de ingresos y egresos.
           </p>
         </div>
 
@@ -227,23 +276,20 @@ export default function CashFlowChart({ movements = [] }) {
 
       {/* Leyenda */}
       <div className="flex flex-wrap items-center gap-5 text-xs font-semibold">
-        <span className="flex items-center gap-1.5 text-emerald-400">
-          <span className="w-3 h-1 bg-emerald-500 rounded-full inline-block"></span> Ingresos Totales
+        <span className="flex items-center gap-1.5 text-indigo-400">
+          <span className="w-3 h-1.5 bg-indigo-400 rounded-full inline-block"></span> Caja Actual (Disponible)
         </span>
-        <span className="flex items-center gap-1.5 text-rose-400">
-          <span className="w-3 h-1 bg-rose-500 rounded-full inline-block"></span> Egresos / Gastos
-        </span>
-        <span className="flex items-center gap-1.5 text-sky-400">
-          <span className="w-3 h-1 bg-sky-400 rounded-full inline-block"></span> Balance Neto Acumulado
+        <span className="flex items-center gap-1.5 text-amber-400">
+          <span className="w-3 h-1 bg-amber-500 rounded-full inline-block"></span> Capital Proyectado (Futuro)
         </span>
       </div>
 
       {chartData.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-52 text-neutral-500 text-xs space-y-1">
-          <span>No hay movimientos de caja registrados para graficar.</span>
+          <span>No hay datos suficientes para graficar.</span>
         </div>
       ) : (
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto relative">
           <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-60 overflow-visible">
             {/* Guías horizontales */}
             {[0, 0.5, 1].map((ratio, i) => {
@@ -260,55 +306,68 @@ export default function CashFlowChart({ movements = [] }) {
             })}
 
             {/* Líneas del Gráfico */}
-            <polyline fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("totalIngresos")} />
-            <polyline fill="none" stroke="#f43f5e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("totalEgresos")} />
-            <polyline fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("balance")} />
+            <polyline fill="none" stroke="#818cf8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={getPoints("cajaActual")} />
+            <polyline fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="3 3" strokeLinecap="round" strokeLinejoin="round" points={getPoints("ingresosFuturos")} />
 
-            {/* Puntos y tooltips */}
+            {/* Puntos Interactivos por Click */}
             {chartData.map((d, index) => {
               const x = padding + (index / (chartData.length - 1 || 1)) * (svgWidth - padding * 2);
-              const yInc = svgHeight - padding - (d.totalIngresos / maxVal) * (svgHeight - padding * 2);
-              const yExp = svgHeight - padding - (d.totalEgresos / maxVal) * (svgHeight - padding * 2);
-              const yBal = svgHeight - padding - (d.balance / maxVal) * (svgHeight - padding * 2);
+              const yCaja = svgHeight - padding - (d.cajaActual / maxVal) * (svgHeight - padding * 2);
+              const yFut = svgHeight - padding - (d.ingresosFuturos / maxVal) * (svgHeight - padding * 2);
+              const isSelected = selectedPointIndex === index;
 
               return (
-                <g key={index} className="group cursor-pointer">
-                  <circle cx={x} cy={yInc} r="3.5" fill="#10b981" />
-                  <circle cx={x} cy={yExp} r="3.5" fill="#f43f5e" />
-                  <circle cx={x} cy={yBal} r="3.5" fill="#38bdf8" />
+                <g key={index} className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedPointIndex(isSelected ? null : index); }}>
+                  <circle cx={x} cy={yCaja} r={isSelected ? "6" : "4.5"} fill={isSelected ? "#ffffff" : "#818cf8"} stroke={isSelected ? "#818cf8" : "none"} strokeWidth="2" />
+                  <circle cx={x} cy={yFut} r={isSelected ? "5" : "3.5"} fill={isSelected ? "#ffffff" : "#f59e0b"} stroke={isSelected ? "#f59e0b" : "none"} strokeWidth="2" />
 
                   <text x={x} y={svgHeight - 12} fill="#737373" fontSize="9" textAnchor="middle">
                     {d.period}
                   </text>
-
-                  <foreignObject x={Math.min(Math.max(x - 75, 10), svgWidth - 160)} y="2" width="150" height="115" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30">
-                    <div className="bg-neutral-900 border border-neutral-700 p-2.5 rounded-xl shadow-2xl text-[10px] space-y-1.5">
-                      <p className="font-bold text-white border-b border-neutral-800 pb-1 flex justify-between">
-                        <span>📅 {d.period}</span>
-                      </p>
-                      <div className="space-y-0.5">
-                        <p className="text-emerald-400 flex justify-between">
-                          <span>Ingresos:</span> <span className="font-semibold">{formatMoney(d.totalIngresos)}</span>
-                        </p>
-                        <p className="text-rose-400 flex justify-between">
-                          <span>Egresos:</span> <span className="font-semibold">{formatMoney(d.totalEgresos)}</span>
-                        </p>
-                        <p className="text-sky-400 flex justify-between">
-                          <span>Balance Neto:</span> <span className="font-semibold">{formatMoney(d.balance)}</span>
-                        </p>
-                      </div>
-                      {(d.periodDeltaInc > 0 || d.periodDeltaExp > 0) && (
-                        <div className="border-t border-neutral-800 pt-1 text-[9px] text-neutral-400">
-                          {d.periodDeltaInc > 0 && <p className="text-emerald-300">+ {formatMoney(d.periodDeltaInc)} ingresados hoy</p>}
-                          {d.periodDeltaExp > 0 && <p className="text-rose-300">- {formatMoney(d.periodDeltaExp)} egresados hoy</p>}
-                        </div>
-                      )}
-                    </div>
-                  </foreignObject>
                 </g>
               );
             })}
           </svg>
+
+          {/* Ventana flotante (Popup) vinculada al punto seleccionado */}
+          {selectedPointIndex !== null && chartData[selectedPointIndex] && (() => {
+            const d = chartData[selectedPointIndex];
+            const x = padding + (selectedPointIndex / (chartData.length - 1 || 1)) * (svgWidth - padding * 2);
+            // Posicionamos el popup de manera inteligente a un lado del punto para no tapar la vista
+            const isRightSide = x > svgWidth / 2;
+            const popupStyle = isRightSide ? { right: `${Math.max(10, svgWidth - x - 20)}px` } : { left: `${Math.max(10, x - 20)}px` };
+
+            return (
+              <div 
+                style={popupStyle}
+                className="absolute top-4 z-40 bg-neutral-900 border border-indigo-500/50 p-3.5 rounded-2xl shadow-2xl text-[11px] space-y-2.5 w-48 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+              >
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-1.5">
+                  <span className="font-bold text-white flex items-center gap-1.5">📅 {d.period}</span>
+                  <button 
+                    onClick={() => setSelectedPointIndex(null)}
+                    className="text-neutral-400 hover:text-white text-xs px-1.5 py-0.5 rounded bg-neutral-800 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-indigo-300 flex justify-between items-center">
+                    <span>Caja Actual:</span> <span className="font-bold text-white">{formatMoney(d.cajaActual)}</span>
+                  </p>
+                  <p className="text-emerald-400 flex justify-between items-center">
+                    <span>➕ Ingresos Cap.:</span> <span className="font-semibold">+{formatMoney(d.ingresosDiarios)}</span>
+                  </p>
+                  <p className="text-rose-400 flex justify-between items-center">
+                    <span>➖ Egresos Cap.:</span> <span className="font-semibold">-{formatMoney(d.egresosDiarios)}</span>
+                  </p>
+                  <p className="text-amber-400 flex justify-between items-center border-t border-neutral-800/80 pt-1.5">
+                    <span>Cap. Proyectado:</span> <span className="font-semibold">{formatMoney(d.ingresosFuturos)}</span>
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

@@ -3,6 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AnalyticsService {
+  getAnalytics(arg0: { preset: string; startDate: string; endDate: string; }) {
+    throw new Error('Method not implemented.');
+  }
   constructor(private prisma: PrismaService) {}
 
   async getDashboardStats(preset?: string, startDateStr?: string, endDateStr?: string) {
@@ -54,13 +57,8 @@ export class AnalyticsService {
     const hasDateFilter = Object.keys(dateFilter).length > 0;
 
     // 2. Consultas a base de datos
-    // Para clientes y movimientos de caja aplicamos el filtro por fecha de creación si existe
     const clientWhere = hasDateFilter ? { createdAt: dateFilter } : {};
     const cashWhere = hasDateFilter ? { createdAt: dateFilter } : {};
-
-    // IMPORTANTE: Para los préstamos, si hay filtro, evaluamos por createdAt (o dejamos abierto 
-    // el histórico para gráficos precisos y filtramos en memoria o por rango amplio).
-    // Aquí usamos createdAt para la creación de la cartera en el período seleccionado.
     const loanWhere = hasDateFilter ? { createdAt: dateFilter } : {};
 
     const [clientsCount, loans, cashMovementRecords] = await Promise.all([
@@ -73,7 +71,10 @@ export class AnalyticsService {
         },
         orderBy: { createdAt: 'asc' },
       }),
-      this.prisma.cashMovement.findMany({ where: cashWhere }),
+      this.prisma.cashMovement.findMany({ 
+        where: cashWhere,
+        orderBy: { date: 'asc' }
+      }),
     ]);
 
     // 3. Procesamiento y Agregaciones de Negocio
@@ -106,7 +107,7 @@ export class AnalyticsService {
       if (m.type === 'EGRESO') cashBalance -= amount;
     });
 
-    // 4. Retorno con contrato tipado y limpio para el frontend
+    // 4. Retorno con contrato tipado, limpios para el frontend (incluyendo movements)
     return {
       clientsCount,
       totalLoansCount,
@@ -129,6 +130,16 @@ export class AnalyticsService {
           amount: Number(p.amount) || 0,
           createdAt: p.createdAt,
         }))
+      })),
+      movements: cashMovementRecords.map(m => ({
+        id: m.id,
+        type: m.type,
+        category: m.category,
+        amount: Number(m.amount) || 0,
+        paymentMethod: m.paymentMethod,
+        description: m.description,
+        date: m.date,
+        createdAt: m.createdAt,
       })),
     };
   }

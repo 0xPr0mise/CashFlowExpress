@@ -38,10 +38,10 @@ export default function AnalyticsPage() {
 
   if (loading && !stats)
     return (
-      <div className="min-h-screen bg-black text-neutral-400 flex items-center justify-center font-sans">
-        <div className="flex items-center gap-3">
-          <span className="w-3 h-3 bg-red-600 rounded-full animate-ping"></span>
-          Sincronizando núcleos de analíticas financieras...
+      <div className="min-h-screen bg-black text-neutral-400 flex items-center justify-center font-sans p-4">
+        <div className="flex items-center gap-3 text-center">
+          <span className="w-3 h-3 bg-red-600 rounded-full animate-ping shrink-0"></span>
+          <span className="text-sm">Sincronizando núcleos de analíticas financieras...</span>
         </div>
       </div>
     );
@@ -110,20 +110,41 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white">
       
-      {/* HEADER Y FILTROS FIJOS ARRIBA (Sticky) */}
-      <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-neutral-800/80 px-6 md:px-10 py-5 shadow-2xl">
-        <div className="max-w-6xl mx-auto space-y-4">
-          <AnalyticsHeader />
+      {/* HEADER Y FILTROS FIJOS (Sticky Mobile First) */}
+      <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-xl border-b border-neutral-800/80 px-4 sm:px-6 md:px-10 py-4 shadow-2xl">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          
+          {/* Título y subtítulo */}
+          <div className="w-full lg:w-auto">
+            <AnalyticsHeader />
+          </div>
+
+          {/* Tarjetas de KPIs arriba (Scroll horizontal fluido en mobile, alineado a la derecha en desktop) */}
+          <div className="w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
+            <div className="min-w-max lg:min-w-0 lg:origin-right">
+              <AnalyticsKpiGrid stats={currentData} calculations={calculations} />
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto mt-3">
           <AnalyticsFilters onFilterChange={handleFilterChange} rawData={currentData} />
         </div>
       </div>
 
-      {/* CONTENIDO DESPLAZABLE DE LA PÁGINA */}
-      <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-8">
-        <AnalyticsKpiGrid stats={currentData} calculations={calculations} />
-        <CapitalGrowthChart loans={loansArray} />
-        <CashFlowChart movements={movementsArray} />
+      {/* CONTENIDO PRINCIPAL DESPLAZABLE */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-6 md:space-y-8">
         <AnalyticsCharts stats={currentData} calculations={calculations} />
+        
+        {/* Gráficos: 1 columna en celulares, 2 columnas lado a lado en pantallas grandes (lg) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CapitalGrowthChart loans={loansArray} />
+          <CashFlowChart 
+            movements={movementsArray} 
+            loans={loansArray} 
+            currentCashBalance={cashBalance} 
+          />
+        </div>
       </div>
 
     </div>

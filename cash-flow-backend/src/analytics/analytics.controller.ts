@@ -18,4 +18,17 @@ export class AnalyticsController {
 
     return this.analyticsService.getDashboardStats(cleanPreset, cleanStart, cleanEnd);
   }
-}
+
+  @Get()
+    async getAnalytics(
+      @Query('preset') preset?: string,
+      @Query('startDate') startDate?: string,
+      @Query('endDate') endDate?: string,
+    ) {
+      return this.analyticsService.getAnalytics({
+        preset,
+        startDate,
+        endDate,
+      });
+    }
+  }

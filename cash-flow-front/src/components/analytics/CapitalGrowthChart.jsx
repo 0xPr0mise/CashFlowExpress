@@ -1,11 +1,24 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 export default function CapitalGrowthChart({ loans = [] }) {
   const [viewMode, setViewMode] = useState("day"); // "day" | "week" | "month"
   const [dayRange, setDayRange] = useState(14); // Rango dinámico de días para el zoom (por defecto 14)
   const [showDaySlider, setShowDaySlider] = useState(false); // Controla la visibilidad manual del slider en modo "Días"
+  const [selectedPointIndex, setSelectedPointIndex] = useState(null);
+
+  // Cerrar el popup si se hace clic fuera del gráfico
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".growth-chart-container")) {
+        setSelectedPointIndex(null);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const handleViewModeChange = (mode) => {
+    setSelectedPointIndex(null);
     if (mode === "day") {
       if (viewMode === "day") {
         // Si ya estaba en "day" y vuelve a hacer clic, alterna la visibilidad del slider
@@ -248,16 +261,14 @@ export default function CapitalGrowthChart({ loans = [] }) {
   };
 
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-5">
+    <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-5 growth-chart-container relative">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-neutral-800/80 pb-4">
         <div>
           <h3 className="text-base font-bold text-white flex items-center gap-2">
             📈 Crecimiento de Capital y Utilidad en el Tiempo
           </h3>
           <p className="text-xs text-neutral-400 mt-0.5">
-            {viewMode === 'day' && `Mostrando un rango dinámico de ${dayRange} días.`}
-            {viewMode === 'week' && 'Evolución semanal agrupada.'}
-            {viewMode === 'month' && 'Mostrando perspectiva de los últimos 3 a 4 meses.'}
+            Haz clic en cualquier punto del gráfico para ver el detalle de capital y utilidades.
           </p>
         </div>
 
@@ -293,7 +304,7 @@ export default function CapitalGrowthChart({ loans = [] }) {
         </div>
       </div>
 
-      {/* Control Slider desplegable condicional (Se despliega al hacer 2 toques sobre "Días") */}
+      {/* Control Slider desplegable condicional */}
       <div className={`grid transition-all duration-300 ease-in-out overflow-hidden ${
         viewMode === "day" && showDaySlider ? "grid-rows-[1fr] opacity-100 mb-2" : "grid-rows-[0fr] opacity-0 mb-0"
       }`}>
@@ -334,7 +345,7 @@ export default function CapitalGrowthChart({ loans = [] }) {
           <span>No hay eventos temporales suficientes para trazar las líneas de tendencia.</span>
         </div>
       ) : (
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto relative">
           <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-60 overflow-visible">
             {/* Guías horizontales */}
             {[0, 0.5, 1].map((ratio, i) => {
@@ -350,56 +361,74 @@ export default function CapitalGrowthChart({ loans = [] }) {
               );
             })}
 
-            {/* Líneas del Gráfico */}
+            {/* Líneas del Gráfico (Utilidad Proyectada ahora punteada strokeDasharray="3 3") */}
             <polyline fill="none" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("capitalColocado")} />
             <polyline fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("utilidadCobrada")} />
-            <polyline fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("utilidadProyectada")} />
+            <polyline fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeDasharray="3 3" strokeLinecap="round" strokeLinejoin="round" points={getPoints("utilidadProyectada")} />
 
-            {/* Puntos y tooltips */}
+            {/* Puntos interactivos por click */}
             {chartData.map((d, index) => {
               const x = padding + (index / (chartData.length - 1 || 1)) * (svgWidth - padding * 2);
               const yCap = svgHeight - padding - (d.capitalColocado / maxVal) * (svgHeight - padding * 2);
               const yColl = svgHeight - padding - (d.utilidadCobrada / maxVal) * (svgHeight - padding * 2);
               const yProj = svgHeight - padding - (d.utilidadProyectada / maxVal) * (svgHeight - padding * 2);
+              const isSelected = selectedPointIndex === index;
 
               return (
-                <g key={index} className="group cursor-pointer">
-                  <circle cx={x} cy={yCap} r="3.5" fill="#a855f7" />
-                  <circle cx={x} cy={yColl} r="3.5" fill="#10b981" />
-                  <circle cx={x} cy={yProj} r="3.5" fill="#fbbf24" />
+                <g key={index} className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedPointIndex(isSelected ? null : index); }}>
+                  <circle cx={x} cy={yCap} r={isSelected ? "5.5" : "3.5"} fill={isSelected ? "#ffffff" : "#a855f7"} stroke={isSelected ? "#a855f7" : "none"} strokeWidth="2" />
+                  <circle cx={x} cy={yColl} r={isSelected ? "5.5" : "3.5"} fill={isSelected ? "#ffffff" : "#10b981"} stroke={isSelected ? "#10b981" : "none"} strokeWidth="2" />
+                  <circle cx={x} cy={yProj} r={isSelected ? "5.5" : "3.5"} fill={isSelected ? "#ffffff" : "#fbbf24"} stroke={isSelected ? "#fbbf24" : "none"} strokeWidth="2" />
 
                   <text x={x} y={svgHeight - 12} fill="#737373" fontSize="9" textAnchor="middle">
                     {d.period}
                   </text>
-
-                  <foreignObject x={Math.min(Math.max(x - 75, 10), svgWidth - 160)} y="2" width="150" height="115" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30">
-                    <div className="bg-neutral-900 border border-neutral-700 p-2.5 rounded-xl shadow-2xl text-[10px] space-y-1.5">
-                      <p className="font-bold text-white border-b border-neutral-800 pb-1 flex justify-between">
-                        <span>📅 {d.period}</span>
-                      </p>
-                      <div className="space-y-0.5">
-                        <p className="text-purple-400 flex justify-between">
-                          <span>Cap. Colocado:</span> <span className="font-semibold">{formatMoney(d.capitalColocado)}</span>
-                        </p>
-                        <p className="text-emerald-400 flex justify-between">
-                          <span>Cobrado (Acum):</span> <span className="font-semibold">{formatMoney(d.utilidadCobrada)}</span>
-                        </p>
-                        <p className="text-amber-400 flex justify-between">
-                          <span>Proyectada:</span> <span className="font-semibold">{formatMoney(d.utilidadProyectada)}</span>
-                        </p>
-                      </div>
-                      {(d.periodDeltaProj > 0 || d.periodDeltaColl > 0) && (
-                        <div className="border-t border-neutral-800 pt-1 text-[9px] text-neutral-400">
-                          {d.periodDeltaProj > 0 && <p className="text-amber-300">+ {formatMoney(d.periodDeltaProj)} proyectados hoy</p>}
-                          {d.periodDeltaColl > 0 && <p className="text-emerald-300">+ {formatMoney(d.periodDeltaColl)} cobrados hoy</p>}
-                        </div>
-                      )}
-                    </div>
-                  </foreignObject>
                 </g>
               );
             })}
           </svg>
+
+          {/* Ventana flotante (Popup) vinculada al punto seleccionado */}
+          {selectedPointIndex !== null && chartData[selectedPointIndex] && (() => {
+            const d = chartData[selectedPointIndex];
+            const x = padding + (selectedPointIndex / (chartData.length - 1 || 1)) * (svgWidth - padding * 2);
+            const isRightSide = x > svgWidth / 2;
+            const popupStyle = isRightSide ? { right: `${Math.max(10, svgWidth - x - 20)}px` } : { left: `${Math.max(10, x - 20)}px` };
+
+            return (
+              <div 
+                style={popupStyle}
+                className="absolute top-4 z-40 bg-neutral-900 border border-purple-500/50 p-3.5 rounded-2xl shadow-2xl text-[11px] space-y-2.5 w-48 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+              >
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-1.5">
+                  <span className="font-bold text-white flex items-center gap-1.5">📅 {d.period}</span>
+                  <button 
+                    onClick={() => setSelectedPointIndex(null)}
+                    className="text-neutral-400 hover:text-white text-xs px-1.5 py-0.5 rounded bg-neutral-800 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-purple-400 flex justify-between items-center">
+                    <span>Cap. Colocado:</span> <span className="font-bold text-white">{formatMoney(d.capitalColocado)}</span>
+                  </p>
+                  <p className="text-emerald-400 flex justify-between items-center">
+                    <span>Cobrado (Acum):</span> <span className="font-semibold">{formatMoney(d.utilidadCobrada)}</span>
+                  </p>
+                  <p className="text-amber-400 flex justify-between items-center">
+                    <span>Proyectada:</span> <span className="font-semibold">{formatMoney(d.utilidadProyectada)}</span>
+                  </p>
+                </div>
+                {(d.periodDeltaProj > 0 || d.periodDeltaColl > 0) && (
+                  <div className="border-t border-neutral-800/80 pt-1.5 text-[10px] space-y-0.5">
+                    {d.periodDeltaProj > 0 && <p className="text-amber-300">+{formatMoney(d.periodDeltaProj)} proyectados</p>}
+                    {d.periodDeltaColl > 0 && <p className="text-emerald-300">+{formatMoney(d.periodDeltaColl)} cobrados</p>}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
