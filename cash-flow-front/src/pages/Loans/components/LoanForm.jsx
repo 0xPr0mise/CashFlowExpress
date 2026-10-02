@@ -217,28 +217,30 @@ export default function LoanForm({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
-        <div className="relative w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 animate-fadeIn overflow-y-auto">
+        <div className="relative w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] flex flex-col">
           
-          <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              {initialData ? "🔄 Refinanciar Préstamo (Nuevo Crédito)" : "Otorgar Nuevo Préstamo"}
+          {/* Cabecera */}
+          <div className="flex justify-between items-center border-b border-neutral-800 pb-3 flex-shrink-0">
+            <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 truncate">
+              {initialData ? "🔄 Refinanciar Préstamo" : "Otorgar Nuevo Préstamo"}
             </h3>
             <button
               type="button"
               onClick={onClose}
-              className="text-neutral-400 hover:text-white text-xs font-bold px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg cursor-pointer"
+              className="text-neutral-400 hover:text-white text-xs font-bold px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-xl cursor-pointer transition-colors"
             >
               ✕ Cerrar
             </button>
           </div>
 
-          <form onSubmit={handleOpenPreview} className="space-y-4 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Formulario con Scroll interno */}
+          <form onSubmit={handleOpenPreview} className="space-y-4 overflow-y-auto pr-1 flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               
               {/* Cliente */}
               <div className="sm:col-span-2 w-full">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Cliente *</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Cliente *</label>
                 <select
                   name="clientId"
                   value={form.clientId}
@@ -253,24 +255,24 @@ export default function LoanForm({
                   ))}
                 </select>
 
-                {/* ⚠️ ALERTA TAMAÑO CAÑON PARA INCOBRABLES (BLOQUEANTE) */}
+                {/* ⚠️ ALERTA PARA INCOBRABLES (BLOQUEANTE) */}
                 {selectedClientHasBadDebt && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-rose-950/80 border-2 border-rose-600 text-rose-200 text-xs font-bold flex items-center gap-3 animate-pulse shadow-lg shadow-rose-950">
-                    <span className="text-xl">🚨</span>
+                  <div className="mt-3 p-3 rounded-xl bg-rose-950/80 border-2 border-rose-600 text-rose-200 text-xs font-bold flex items-start sm:items-center gap-3 animate-pulse shadow-lg shadow-rose-950">
+                    <span className="text-lg sm:text-xl flex-shrink-0">🚨</span>
                     <div>
-                      <p className="font-black text-white text-sm uppercase tracking-wide">¡CLIENTE BLOQUEADO POR ANTECEDENTES!</p>
-                      <p className="text-rose-300 font-normal mt-0.5">Este usuario posee un préstamo marcado como <strong className="text-white underline">INCOBRABLE</strong>. El sistema denegará cualquier intento de otorgarle un nuevo crédito.</p>
+                      <p className="font-black text-white text-xs sm:text-sm uppercase tracking-wide">¡CLIENTE BLOQUEADO POR ANTECEDENTES!</p>
+                      <p className="text-rose-300 font-normal mt-0.5 text-[11px] sm:text-xs">Posee un préstamo <strong className="text-white underline">INCOBRABLE</strong>. El sistema denegará cualquier crédito.</p>
                     </div>
                   </div>
                 )}
 
-                {/* ℹ️ AVISO INFORMATIVO PARA REFINANCIADOS (PERMITE AVANZAR) */}
+                {/* ℹ️ AVISO PARA REFINANCIADOS */}
                 {!selectedClientHasBadDebt && selectedClientHasRefinanced && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-purple-950/60 border border-purple-600 text-purple-200 text-xs font-medium flex items-center gap-3 shadow-lg">
-                    <span className="text-xl">🟣</span>
+                  <div className="mt-3 p-3 rounded-xl bg-purple-950/60 border border-purple-600 text-purple-200 text-xs font-medium flex items-start sm:items-center gap-3 shadow-lg">
+                    <span className="text-lg sm:text-xl flex-shrink-0">🟣</span>
                     <div>
                       <p className="font-bold text-white text-xs uppercase tracking-wide">Aviso de Refinanciación previa</p>
-                      <p className="text-purple-300 font-normal mt-0.5">Este cliente cuenta con antecedentes refinanciados, pero el sistema permite continuar con la operación.</p>
+                      <p className="text-purple-300 font-normal mt-0.5 text-[11px] sm:text-xs">Este cliente cuenta con antecedentes refinanciados. Se permite continuar.</p>
                     </div>
                   </div>
                 )}
@@ -278,7 +280,7 @@ export default function LoanForm({
 
               {/* Monto */}
               <div className="w-full">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Monto ($) *</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Monto ($) *</label>
                 <input
                   type="text"
                   name="amount"
@@ -291,7 +293,7 @@ export default function LoanForm({
 
               {/* Interés Mensual */}
               <div className="w-full">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Interés Mensual (%) *</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Interés Mensual (%) *</label>
                 <input
                   type="text"
                   name="interestRate"
@@ -303,7 +305,7 @@ export default function LoanForm({
 
               {/* Forma de Entrega */}
               <div className="w-full">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Forma de Entrega *</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Forma de Entrega *</label>
                 <select
                   name="paymentMethod"
                   value={form.paymentMethod}
@@ -317,7 +319,7 @@ export default function LoanForm({
 
               {/* Cuotas */}
               <div className="w-full">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Cuotas *</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Cuotas *</label>
                 <input
                   type="text"
                   name="installments"
@@ -329,7 +331,7 @@ export default function LoanForm({
 
               {/* Frecuencia */}
               <div className="w-full">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Frecuencia *</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Frecuencia *</label>
                 <select
                   name="frequency"
                   value={form.frequency}
@@ -346,11 +348,11 @@ export default function LoanForm({
 
               {/* Fecha de Vencimiento */}
               <div className="w-full">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                    {installmentsNum > 1 ? "Fecha 1er Vencimiento *" : "Fecha de Vencimiento *"}
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                    {installmentsNum > 1 ? "Fecha 1er Vto. *" : "Fecha Vencimiento *"}
                   </label>
-                  <span className="text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
+                  <span className="text-[10px] sm:text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
                     {currentDaysDiff} días
                   </span>
                 </div>
@@ -365,41 +367,44 @@ export default function LoanForm({
 
               {/* Notas / Historial */}
               <div className="sm:col-span-2 w-full">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Notas / Historial</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Notas / Historial</label>
                 <textarea
                   name="notes"
                   rows="2"
                   value={form.notes}
                   onChange={handleChange}
                   placeholder="Detalles adicionales o motivo de refinanciación..."
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
+                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 resize-none"
                 />
               </div>
 
-              <LoanCalculationOptions
-                form={form}
-                onChange={handleChange}
-                currentDaysDiff={currentDaysDiff}
-                installmentsNum={installmentsNum}
-              />
+              <div className="sm:col-span-2">
+                <LoanCalculationOptions
+                  form={form}
+                  onChange={handleChange}
+                  currentDaysDiff={currentDaysDiff}
+                  installmentsNum={installmentsNum}
+                />
+              </div>
 
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-neutral-800">
+            {/* Footer de Botones */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-4 border-t border-neutral-800 sticky bottom-0 bg-neutral-900/95 backdrop-blur-sm pb-1">
               <button
                 type="button"
                 onClick={onClose}
-                className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold px-5 py-2.5 rounded-xl text-sm cursor-pointer"
+                className="w-full sm:w-auto bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 text-neutral-300 font-semibold px-5 py-2.5 rounded-xl text-sm cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={selectedClientHasBadDebt}
-                className={`font-semibold px-6 py-2.5 rounded-xl text-sm shadow-lg transition-all ${
+                className={`w-full sm:w-auto font-semibold px-6 py-2.5 rounded-xl text-sm shadow-lg transition-all ${
                   selectedClientHasBadDebt 
                     ? "bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50 shadow-none border border-neutral-700" 
-                    : "bg-red-600 hover:bg-red-700 text-white shadow-red-950/50 cursor-pointer"
+                    : "bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-red-950/50 cursor-pointer"
                 }`}
               >
                 {selectedClientHasBadDebt ? "Cliente Bloqueado ❌" : "Previsualizar Préstamo"}

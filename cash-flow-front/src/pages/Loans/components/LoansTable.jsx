@@ -87,7 +87,6 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
     return dueDate < today;
   };
 
-  // 🕒 Valida si faltan 3 días o menos para el vencimiento, o si ya está vencido
   const isWithinThreeDaysOrOverdue = (loan) => {
     if (loan.status === "PAGADO" || loan.status === "REFINANCIADO" || loan.status === "INCOBRABLE") return false;
     const dueDateStr = getNextDueDateObject(loan);
@@ -234,14 +233,14 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
   });
 
   return (
-    <div ref={dropdownRef}>
+    <div ref={dropdownRef} className="w-full">
       {sortedLoans.length === 0 ? (
-        <div className="text-center py-12 text-neutral-500">
+        <div className="text-center py-12 text-neutral-500 text-sm">
           No hay préstamos para mostrar con los filtros seleccionados.
         </div>
       ) : (
         <>
-          {/* --- VISTA MÓVIL --- */}
+          {/* --- VISTA MÓVIL (MOBILE FIRST) --- */}
           <div className="block md:hidden space-y-3">
             {sortedLoans.map((loan) => {
               const totalToPay = loan.totalToPay || 0;
@@ -258,25 +257,26 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
               return (
                 <div
                   key={loan.id}
-                  className={`border rounded-2xl p-4 shadow-lg space-y-3 backdrop-blur-sm ${
+                  className={`border rounded-2xl p-4 shadow-lg space-y-3.5 backdrop-blur-sm transition-all ${
                     overdue
                       ? "bg-rose-950/20 border-rose-500/50 border-l-4 border-l-rose-500"
-                      : "bg-neutral-900/80 border-neutral-800"
+                      : "bg-neutral-900/90 border-neutral-800"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2 border-b border-neutral-800/80 pb-3">
-                    <div className="font-bold text-white text-base flex items-center gap-2">
+                  {/* Cabecera de la tarjeta: Cliente y Estado */}
+                  <div className="flex items-center justify-between gap-2 border-b border-neutral-800/80 pb-2.5">
+                    <div className="font-bold text-white text-sm sm:text-base flex items-center gap-2 truncate">
                       {overdue && (
-                        <span className="relative flex h-2.5 w-2.5">
+                        <span className="relative flex h-2 w-2 flex-shrink-0">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                         </span>
                       )}
-                      {loan.client?.name || "N/A"}
+                      <span className="truncate">{loan.client?.name || "N/A"}</span>
                     </div>
                     
                     <span
-                      className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold border ${
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border flex-shrink-0 ${
                         loan.status === "PAGADO"
                           ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/40"
                           : loan.status === "REFINANCIADO"
@@ -292,72 +292,77 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                     </span>
                   </div>
 
+                  {/* Detalles de cuotas y fechas */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="text-neutral-400">
-                      <span className="text-neutral-500 block text-[10px] uppercase">Plan / Frecuencia</span>
-                      <span className="text-neutral-200 font-medium">{loan.installments} cuotas ({loan.frequency})</span>
+                    <div className="bg-neutral-950/30 p-2 rounded-xl border border-neutral-800/40">
+                      <span className="text-neutral-500 block text-[10px] uppercase font-medium">Plan</span>
+                      <span className="text-neutral-200 font-semibold">{loan.installments} cuotas <span className="text-neutral-400 text-[11px] font-normal">({loan.frequency})</span></span>
                     </div>
-                    <div className="text-neutral-400">
-                      <span className="text-neutral-500 block text-[10px] uppercase">Próximo Vencimiento</span>
-                      <span className={`font-semibold ${overdue ? "text-rose-400 animate-pulse" : "text-neutral-200"}`}>
+                    <div className="bg-neutral-950/30 p-2 rounded-xl border border-neutral-800/40">
+                      <span className="text-neutral-500 block text-[10px] uppercase font-medium">Vencimiento</span>
+                      <span className={`font-semibold truncate block ${overdue ? "text-rose-400 animate-pulse" : "text-neutral-200"}`}>
                         {getNextDueDateFormatted(loan)} {overdue && "⚠️"}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 bg-black/40 border border-neutral-800/60 p-3 rounded-xl">
+                  {/* Bloque de Dinero */}
+                  <div className="grid grid-cols-2 gap-2 bg-black/50 border border-neutral-800/60 p-2.5 rounded-xl">
                     <div>
-                      <span className="text-[10px] text-neutral-500 block uppercase">Total a Pagar</span>
-                      <span className="text-sm font-bold text-emerald-400">{formatMoney(totalToPay)}</span>
+                      <span className="text-[10px] text-neutral-500 block uppercase font-medium">Total a Pagar</span>
+                      <span className="text-xs sm:text-sm font-bold text-emerald-400">{formatMoney(totalToPay)}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-neutral-500 block uppercase">Saldo Pendiente</span>
-                      <span className="text-sm font-bold text-amber-400">{formatMoney(pendingAmount)}</span>
+                      <span className="text-[10px] text-neutral-500 block uppercase font-medium">Saldo Pendiente</span>
+                      <span className="text-xs sm:text-sm font-bold text-amber-400">{formatMoney(pendingAmount)}</span>
                     </div>
                   </div>
 
-                  {/* Acciones móviles */}
+                  {/* Botonera de Acciones Móvil */}
                   <div className="flex items-center gap-2 pt-1 relative">
                     {!isClosed && (
                       <>
                         <button
                           type="button"
                           onClick={() => setSelectedLoanForPayment(loan)}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white py-2 px-3 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-950/50 cursor-pointer flex items-center justify-center gap-1"
                         >
-                          Pagar 💵
+                          <span>Pagar</span> 💵
                         </button>
 
                         {showReminder && (
-                          <LoanReminderButton 
-                            loan={loan} 
-                            getNextDueDateFormatted={getNextDueDateFormatted} 
-                            isOverdue={overdue}
-                          />
+                          <div className="flex-shrink-0">
+                            <LoanReminderButton 
+                              loan={loan} 
+                              getNextDueDateFormatted={getNextDueDateFormatted} 
+                              isOverdue={overdue}
+                            />
+                          </div>
                         )}
                       </>
                     )}
 
-                    {/* Botonera Desplegable Móvil */}
-                    <div className={`relative ${isClosed || !showReminder ? "w-full" : "flex-1"}`}>
+                    {/* Botón de Acciones (Desplegable) */}
+                    <div className={`relative ${isClosed || !showReminder ? "w-full" : ""}`}>
                       <button
                         type="button"
                         onClick={() => setActiveDropdownId(activeDropdownId === loan.id ? null : loan.id)}
-                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        className={`w-full bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 text-neutral-200 border border-neutral-700 py-2 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${isClosed ? "w-full" : ""}`}
                       >
                         <span>⚙️ Acciones</span>
                         <span className="text-[10px]">▼</span>
                       </button>
 
+                      {/* Menú Desplegable (Se despliega hacia arriba si está cerca del borde para evitar recortes) */}
                       {activeDropdownId === loan.id && (
-                        <div className="absolute right-0 bottom-full mb-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-20 overflow-hidden py-1">
+                        <div className="absolute right-0 bottom-full mb-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-30 overflow-hidden py-1 text-left">
                           {!isClosed && (
                             <>
                               <button
                                 type="button"
                                 onClick={() => handleRefinanceClick(loan)}
                                 disabled={loadingId === loan.id}
-                                className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                                className="w-full px-4 py-2 text-xs text-red-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
                               >
                                 <span>🔄</span> Refinanciar
                               </button>
@@ -365,7 +370,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                                 type="button"
                                 onClick={() => handleBadDebtClick(loan)}
                                 disabled={loadingId === loan.id}
-                                className="w-full text-left px-4 py-2.5 text-xs text-rose-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                                className="w-full px-4 py-2 text-xs text-rose-400 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
                               >
                                 <span>⚠️</span> Incobrable
                               </button>
@@ -377,7 +382,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                               setActiveDropdownId(null);
                               if (onSelectLoanForHistory) onSelectLoanForHistory(loan);
                             }}
-                            className="w-full text-left px-4 py-2.5 text-xs text-neutral-300 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                            className="w-full px-4 py-2 text-xs text-neutral-300 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
                           >
                             <span>📋</span> Historial
                           </button>
@@ -387,7 +392,7 @@ export default function LoansTable({ loans, onLoanUpdated, onDeleteLoan, onRefin
                               setActiveDropdownId(null);
                               onDeleteLoan(loan.id);
                             }}
-                            className="w-full text-left px-4 py-2.5 text-xs text-red-500 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer border-t border-neutral-800/60"
+                            className="w-full px-4 py-2 text-xs text-red-500 hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer border-t border-neutral-800/60"
                           >
                             <span>🗑️</span> Eliminar
                           </button>
