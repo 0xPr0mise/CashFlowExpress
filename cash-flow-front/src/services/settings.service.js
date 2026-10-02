@@ -15,3 +15,8 @@ export async function saveSetting(key, value) {
   if (!res.ok) throw new Error("Error al guardar configuración");
   return res.json();
 }
+
+// NUEVO: Función para obtener la URL de descarga del backup
+export function getBackupDownloadUrl() {
+  return `${API_URL}/backup/download`;
+}
