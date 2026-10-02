@@ -14,34 +14,80 @@ export default function AnalyticsCharts({ stats, calculations }) {
   } = calculations || {};
 
   const loansArray = stats?.loans || [];
+  const activePreset = stats?.preset || "all";
+  const customStartDate = stats?.startDate ? new Date(stats.startDate) : null;
+  const customEndDate = stats?.endDate ? new Date(stats.endDate) : null;
 
-  // 1. Cálculo de próximos a vencer (en los siguientes 7 días o según rango)
+  // Definir los límites de fecha del filtro de forma limpia (ignorando horas para comparar días exactos)
   const now = new Date();
-  const upcomingLimit = new Date();
-  upcomingLimit.setDate(now.getDate() + 7);
+  now.setHours(0, 0, 0, 0);
 
+  let rangeStart = new Date(now);
+  let rangeEnd = new Date(now);
+
+  if (activePreset === "today") {
+    rangeStart = new Date(now);
+    rangeEnd = new Date(now);
+    rangeEnd.setHours(23, 59, 59, 999);
+  } else if (activePreset === "week") {
+    const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    rangeStart = new Date(now);
+    rangeStart.setDate(now.getDate() - dayOfWeek);
+    rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeStart.getDate() + 6);
+    rangeEnd.setHours(23, 59, 59, 999);
+  } else if (activePreset === "month") {
+    rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  } else if (activePreset === "custom" && customStartDate && customEndDate) {
+    rangeStart = new Date(customStartDate);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(customEndDate);
+    rangeEnd.setHours(23, 59, 59, 999);
+  } else {
+    // Histórico u "all": mostramos un horizonte amplio o lo que esté activo
+    rangeStart = new Date(1970, 0, 1);
+    rangeEnd = new Date(2099, 11, 31);
+  }
+
+  // 1. Cálculo preciso de cuotas próximas a vencer dentro del rango seleccionado
   let upcomingAmount = 0;
   let upcomingCount = 0;
 
   loansArray.forEach(loan => {
-    if (loan && loan.status === 'ACTIVO') {
+    if (loan && (loan.status === 'ACTIVO' || loan.status === 'ACTIVE' || !loan.status)) {
       const paidSum = (loan.payments || []).reduce((pAcc, p) => pAcc + (Number(p?.amount) || 0), 0);
-      const pending = (Number(loan.totalToPay) || 0) - paidSum;
+      const pendingLoanBalance = (Number(loan.totalToPay) || Number(loan.totalAmount) || 0) - paidSum;
       
-      if (pending > 0 && loan.installments && Array.isArray(loan.installments)) {
-        loan.installments.forEach(inst => {
+      // Buscamos cuotas en cualquiera de las estructuras comunes (installments, cuotas)
+      const installmentsList = loan.installments || loan.cuotas || [];
+
+      if (installmentsList.length > 0) {
+        installmentsList.forEach(inst => {
           if (inst) {
-            const rawDate = inst.dueDate || inst.vencimiento || inst.date;
-            if (rawDate) {
-              const d = new Date(rawDate);
-              // Verificamos si la cuota vence próximamente y aún no está pagada (o es parte del saldo pendiente)
-              if (!isNaN(d.getTime()) && d >= now && d <= upcomingLimit) {
-                upcomingAmount += (Number(inst.amount) || (pending / loan.installments.length));
+            const rawDate = inst.dueDate || inst.vencimiento || inst.date || inst.fecha;
+            const isPaid = inst.status === 'PAGADA' || inst.pagada === true || inst.isPaid === true;
+            
+            if (rawDate && !isPaid) {
+              // Limpiamos la fecha para evitar desfases de UTC/Local
+              const cleanDateStr = typeof rawDate === 'string' ? rawDate.split('T')[0] : rawDate;
+              const d = new Date(cleanDateStr + 'T00:00:00');
+
+              if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) {
+                upcomingAmount += (Number(inst.amount) || Number(inst.cuota) || (pendingLoanBalance / installmentsList.length));
                 upcomingCount++;
               }
             }
           }
         });
+      } else if (pendingLoanBalance > 0 && loan.dueDate) {
+        // Si el préstamo no tiene desglose de cuotas pero tiene fecha de vencimiento general
+        const cleanDateStr = typeof loan.dueDate === 'string' ? loan.dueDate.split('T')[0] : loan.dueDate;
+        const d = new Date(cleanDateStr + 'T00:00:00');
+        if (!isNaN(d.getTime()) && d >= rangeStart && d <= rangeEnd) {
+          upcomingAmount += pendingLoanBalance;
+          upcomingCount++;
+        }
       }
     }
   });
@@ -49,12 +95,7 @@ export default function AnalyticsCharts({ stats, calculations }) {
   const totalPending = Math.max(0, expectedReturn - totalCollected);
   upcomingAmount = Math.min(upcomingAmount, totalPending);
 
-  // Porcentajes para las barras principales del bloque izquierdo
-  const baseDenominator = expectedReturn > 0 ? expectedReturn : 1;
-  const collectedPct = Math.min(100, (totalCollected / baseDenominator) * 100);
   const remainingRate = Math.max(0, 100 - collectionRate);
-
-  // Porcentaje de próximos a vencer respecto al total de préstamos activos o esperados para la barra visual
   const upcomingBarPercentage = expectedReturn > 0 ? Math.min(100, (upcomingAmount / expectedReturn) * 100) : 0;
 
   return (
@@ -93,7 +134,7 @@ export default function AnalyticsCharts({ stats, calculations }) {
             </div>
           </div>
 
-          {/* Barra 2: Dinero Real Recaudado con indicador pendiente en gris */}
+          {/* Barra 2: Dinero Real Recaudado */}
           <div>
             <div className="flex justify-between text-xs font-semibold mb-2">
               <span className="text-neutral-300 flex items-center gap-1.5">
@@ -143,7 +184,7 @@ export default function AnalyticsCharts({ stats, calculations }) {
         </div>
       </div>
 
-      {/* Bloque Derecho: Salud de Cartera y Riesgo (Con barra de Próximos a Vencer añadida) */}
+      {/* Bloque Derecho: Salud de Cartera y Riesgo */}
       <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl p-6 shadow-2xl backdrop-blur-md flex flex-col justify-between">
         <div>
           <h3 className="text-lg font-bold text-white tracking-tight mb-1">
@@ -187,19 +228,19 @@ export default function AnalyticsCharts({ stats, calculations }) {
             </div>
           </div>
 
-          {/* NUEVA BARRA: Próximos a Vencer (por cobrar en el rango) */}
+          {/* Próximos a Vencer filtrados dinámicamente por rango */}
           <div className="bg-black/50 border border-sky-950/40 p-3 rounded-xl shadow-inner">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-sky-400 rounded-full"></span>
-                <span className="text-xs font-semibold text-neutral-300">Próximos a Vencer</span>
+                <span className="text-xs font-semibold text-neutral-300">Próximos a Vencer (En rango)</span>
               </div>
               <span className="text-xs font-bold text-sky-400">
                 {upcomingCount} cuotas
               </span>
             </div>
             <div className="text-[10px] text-sky-300/80 font-medium mb-2">
-              Por cobrar en rango: ${Number(upcomingAmount).toLocaleString("es-AR", { maximumFractionDigits: 2 })}
+              Por cobrar: ${Number(upcomingAmount).toLocaleString("es-AR", { maximumFractionDigits: 2 })}
             </div>
             <div className="w-full bg-neutral-900 rounded-full h-2 overflow-hidden">
               <div className="bg-sky-400 h-full rounded-full transition-all duration-500" style={{ width: `${Math.max(5, upcomingBarPercentage)}%` }}></div>

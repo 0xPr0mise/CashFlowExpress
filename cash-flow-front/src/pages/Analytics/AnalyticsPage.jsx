@@ -5,6 +5,7 @@ import AnalyticsFilters from "../../components/analytics/AnalyticsFilters";
 import AnalyticsKpiGrid from "../../components/analytics/AnalyticsKpiGrid";
 import AnalyticsCharts from "../../components/analytics/AnalyticsCharts";
 import CapitalGrowthChart from "../../components/analytics/CapitalGrowthChart";
+import CashFlowChart from "../../components/analytics/CashFlowChart";
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState(null);
@@ -14,7 +15,7 @@ export default function AnalyticsPage() {
     try {
       setLoading(true);
       const data = await getAnalytics(filters);
-      setStats(data || {});
+      setStats({ ...(data || {}), ...filters });
     } catch (err) {
       console.error("Error cargando analíticas:", err);
     } finally {
@@ -47,6 +48,7 @@ export default function AnalyticsPage() {
 
   const currentData = stats || {};
   const loansArray = currentData.loans || [];
+  const movementsArray = currentData.movements || currentData.cashMovements || [];
 
   const totalLoans = currentData.totalLoansCount || 1;
   const activeLoans = currentData.activeLoansCount || 0;
@@ -70,7 +72,6 @@ export default function AnalyticsPage() {
   const outstandingPortfolio = Math.max(0, expectedReturn - totalCollected);
   const averageTicket = totalLoans > 0 ? totalLent / totalLoans : 0;
 
-  // Cálculos de Atrasos / Morosidad limpios gracias al contrato del backend
   const now = new Date();
   const lateLoansList = loansArray.filter(loan => {
     if (loan.status !== 'ACTIVO' || !loan.dueDate) return false;
@@ -107,14 +108,24 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 p-6 md:p-10 font-sans selection:bg-red-600 selection:text-white">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <AnalyticsHeader />
-        <AnalyticsFilters onFilterChange={handleFilterChange} rawData={currentData} />
+    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white">
+      
+      {/* HEADER Y FILTROS FIJOS ARRIBA (Sticky) */}
+      <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-neutral-800/80 px-6 md:px-10 py-5 shadow-2xl">
+        <div className="max-w-6xl mx-auto space-y-4">
+          <AnalyticsHeader />
+          <AnalyticsFilters onFilterChange={handleFilterChange} rawData={currentData} />
+        </div>
+      </div>
+
+      {/* CONTENIDO DESPLAZABLE DE LA PÁGINA */}
+      <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-8">
         <AnalyticsKpiGrid stats={currentData} calculations={calculations} />
         <CapitalGrowthChart loans={loansArray} />
+        <CashFlowChart movements={movementsArray} />
         <AnalyticsCharts stats={currentData} calculations={calculations} />
       </div>
+
     </div>
   );
 }
