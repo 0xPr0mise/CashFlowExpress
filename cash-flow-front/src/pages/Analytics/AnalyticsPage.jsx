@@ -108,18 +108,17 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white">
+    // pb-40 garantiza un colchón de espacio inferior gigante para que el contenido jamás llegue a la altura del dock flotante
+    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-600 selection:text-white pb-40 md:pb-12">
       
-      {/* HEADER Y FILTROS FIJOS (Sticky Mobile First) */}
-      <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-xl border-b border-neutral-800/80 px-4 sm:px-6 md:px-10 py-4 shadow-2xl">
+      {/* HEADER Y FILTROS FIJOS */}
+      <div className="relative lg:sticky lg:top-0 z-20 bg-black/95 backdrop-blur-xl border-b border-neutral-800/80 px-4 sm:px-6 md:px-10 py-4 shadow-2xl">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           
-          {/* Título y subtítulo */}
           <div className="w-full lg:w-auto">
             <AnalyticsHeader />
           </div>
 
-          {/* Tarjetas de KPIs arriba (Scroll horizontal fluido en mobile, alineado a la derecha en desktop) */}
           <div className="w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
             <div className="min-w-max lg:min-w-0 lg:origin-right">
               <AnalyticsKpiGrid stats={currentData} calculations={calculations} />
@@ -136,7 +135,6 @@ export default function AnalyticsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-6 md:space-y-8">
         <AnalyticsCharts stats={currentData} calculations={calculations} />
         
-        {/* Gráficos: 1 columna en celulares, 2 columnas lado a lado en pantallas grandes (lg) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <CapitalGrowthChart loans={loansArray} />
           <CashFlowChart 

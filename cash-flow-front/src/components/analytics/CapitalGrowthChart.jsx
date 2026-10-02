@@ -361,7 +361,7 @@ export default function CapitalGrowthChart({ loans = [] }) {
               );
             })}
 
-            {/* Líneas del Gráfico (Utilidad Proyectada ahora punteada strokeDasharray="3 3") */}
+            {/* Líneas del Gráfico */}
             <polyline fill="none" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("capitalColocado")} />
             <polyline fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" points={getPoints("utilidadCobrada")} />
             <polyline fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeDasharray="3 3" strokeLinecap="round" strokeLinejoin="round" points={getPoints("utilidadProyectada")} />
@@ -391,22 +391,18 @@ export default function CapitalGrowthChart({ loans = [] }) {
           {/* Ventana flotante (Popup) vinculada al punto seleccionado */}
           {selectedPointIndex !== null && chartData[selectedPointIndex] && (() => {
             const d = chartData[selectedPointIndex];
-            const x = padding + (selectedPointIndex / (chartData.length - 1 || 1)) * (svgWidth - padding * 2);
-            const isRightSide = x > svgWidth / 2;
-            const popupStyle = isRightSide ? { right: `${Math.max(10, svgWidth - x - 20)}px` } : { left: `${Math.max(10, x - 20)}px` };
 
             return (
               <div 
-                style={popupStyle}
-                className="absolute top-4 z-40 bg-neutral-900 border border-purple-500/50 p-3.5 rounded-2xl shadow-2xl text-[11px] space-y-2.5 w-48 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+                className="absolute top-14 left-4 right-4 sm:left-auto sm:right-6 z-50 bg-neutral-900/95 border border-purple-500/60 p-3.5 rounded-2xl shadow-2xl text-[11px] space-y-2.5 sm:w-60 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
               >
                 <div className="flex items-center justify-between border-b border-neutral-800 pb-1.5">
                   <span className="font-bold text-white flex items-center gap-1.5">📅 {d.period}</span>
                   <button 
                     onClick={() => setSelectedPointIndex(null)}
-                    className="text-neutral-400 hover:text-white text-xs px-1.5 py-0.5 rounded bg-neutral-800 cursor-pointer"
+                    className="text-neutral-400 hover:text-white text-xs px-2 py-0.5 rounded-lg bg-neutral-800 cursor-pointer"
                   >
-                    ✕
+                    ✕ Cerrar
                   </button>
                 </div>
                 <div className="space-y-1.5">

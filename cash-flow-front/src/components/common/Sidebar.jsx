@@ -5,26 +5,24 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
 
-  // Función auxiliar para determinar si el enlace está activo
   const isActive = (path) => location.pathname === path;
 
   const navItems = [
-    { name: "Préstamos", path: "/loans", icon: "💳" },
-    { name: "Clientes", path: "/clients", icon: "👥" },
-    { name: "Caja", path: "/cash", icon: "💵" },
-    { name: "Analíticas", path: "/analytics", icon: "📊" },
-    { name: "Configuración", path: "/settings", icon: "⚙️" },
+    { name: "Préstamos", fullName: "Préstamos", path: "/loans", icon: "💳" },
+    { name: "Clientes", fullName: "Clientes", path: "/clients", icon: "👥" },
+    { name: "Caja", fullName: "Caja", path: "/cash", icon: "💵" },
+    { name: "Analíticas", fullName: "Analíticas", path: "/analytics", icon: "📊" },
+    { name: "Config.", fullName: "Configuración", path: "/settings", icon: "⚙️" },
   ];
 
   return (
     <>
-      {/* --- VISTA ESCRITORIO: SIDEBAR LATERAL (Oculto en celulares, visible desde md en adelante) --- */}
+      {/* --- VISTA ESCRITORIO: SIDEBAR LATERAL --- */}
       <aside
         className={`hidden md:flex fixed top-0 left-0 h-screen bg-neutral-950 border-r border-neutral-800 transition-all duration-300 z-50 flex-col justify-between ${
           collapsed ? "w-20" : "w-64"
         }`}
       >
-        {/* Sección Superior: Logo y Botón Colapsar */}
         <div>
           <div className="p-5 flex items-center justify-between border-b border-neutral-800">
             {!collapsed ? (
@@ -45,11 +43,10 @@ export default function Sidebar() {
               className="p-1.5 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700 transition-all cursor-pointer"
               title={collapsed ? "Expandir Sidebar" : "Colapsar Sidebar"}
             >
-              {collapsed ? "➡️" : "⬅️"}
+              {collapsed ? "➡" : "⬅️"}
             </button>
           </div>
 
-          {/* Enlaces de Navegación */}
           <nav className="p-3 space-y-1.5">
             {navItems.map((item) => {
               const active = isActive(item.path);
@@ -62,17 +59,16 @@ export default function Sidebar() {
                       ? "bg-red-600 text-white shadow-lg shadow-red-950/50"
                       : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
                   }`}
-                  title={collapsed ? item.name : ""}
+                  title={collapsed ? item.fullName : ""}
                 >
                   <span className="text-base shrink-0">{item.icon}</span>
-                  {!collapsed && <span className="truncate">{item.name}</span>}
+                  {!collapsed && <span className="truncate">{item.fullName}</span>}
                 </Link>
               );
             })}
           </nav>
         </div>
 
-        {/* Sección Inferior: Estado / Versión */}
         <div className="p-4 border-t border-neutral-800">
           <div className={`flex items-center gap-3 bg-black/40 border border-neutral-800 p-2.5 rounded-xl ${collapsed ? "justify-center" : ""}`}>
             <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shrink-0"></span>
@@ -86,8 +82,8 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* --- VISTA MÓVIL: BARRA DE NAVEGACIÓN INFERIOR (Visible solo en celulares, oculto desde md) --- */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-neutral-950/90 border-t border-neutral-800 backdrop-blur-md z-50 px-2 flex items-center justify-around shadow-2xl">
+      {/* --- VISTA MÓVIL: BARRA INFERIOR FIJA (Anclada al borde inferior, sin huecos ni contenido detrás) --- */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-neutral-950 border-t border-neutral-800 z-50 px-2 flex items-center justify-around shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.9)]">
         {navItems.map((item) => {
           const active = isActive(item.path);
           return (
@@ -95,13 +91,15 @@ export default function Sidebar() {
               key={item.path}
               to={item.path}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
-                active ? "text-red-500 font-bold" : "text-neutral-400 hover:text-neutral-200"
+                active 
+                  ? "text-red-400 font-bold bg-red-950/40 border-t-2 border-red-600" 
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              <span className={`text-lg transition-transform ${active ? "scale-110" : ""}`}>
+              <span className={`text-base transition-transform ${active ? "scale-110" : ""}`}>
                 {item.icon}
               </span>
-              <span className="text-[10px] mt-0.5 truncate tracking-tight">
+              <span className="text-[9px] mt-0.5 truncate tracking-tight scale-95">
                 {item.name}
               </span>
             </Link>
