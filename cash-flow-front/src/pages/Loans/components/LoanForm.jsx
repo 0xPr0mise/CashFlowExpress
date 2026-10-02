@@ -9,7 +9,7 @@ export default function LoanForm({
   isOpen, 
   onClose, 
   clients, 
-  loans = [], // Lista de préstamos para validar antecedentes
+  loans = [], 
   onLoanCreated, 
   defaultInterestRate = 20,
   initialData = null 
@@ -22,6 +22,7 @@ export default function LoanForm({
     frequency: "A_TERMINO",
     paymentMethod: "EFECTIVO",
     dueDate: "",
+    dailyDaysCount: "24",
     remainderType: "proporcional", 
     remainderRate: "20",
     multiInstallmentCalc: "plena",   
@@ -54,10 +55,14 @@ export default function LoanForm({
     }
   }, [initialData, defaultInterestRate]);
 
+  // Manejo automático de cuotas y fechas según frecuencia
   useEffect(() => {
     const installmentsNum = parseInt(form.installments, 10) || 1;
     
-    if (installmentsNum === 1) {
+    if (form.frequency === "DIARIO") {
+      const totalDays = parseInt(form.dailyDaysCount, 10) || 24;
+      setForm(prev => ({ ...prev, installments: String(totalDays) }));
+    } else if (installmentsNum === 1) {
       setForm((prev) => ({ ...prev, frequency: "A_TERMINO" }));
     } else {
       if (form.frequency === "A_TERMINO") {
@@ -69,7 +74,11 @@ export default function LoanForm({
     let targetDate = new Date();
 
     if (form.frequency === "DIARIO") {
+      // El vencimiento en diario sí o sí es a 1 día (ajustando si cae domingo)
       targetDate.setDate(today.getDate() + 1);
+      if (targetDate.getDay() === 0) {
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
     } else if (form.frequency === "SEMANAL") {
       targetDate.setDate(today.getDate() + 7);
     } else if (form.frequency === "QUINCENAL") {
@@ -85,16 +94,14 @@ export default function LoanForm({
       dueDate: targetDate.toISOString().split('T')[0] 
     }));
 
-  }, [form.installments, form.frequency]);
+  }, [form.installments, form.frequency, form.dailyDaysCount]);
 
   if (!isOpen) return null;
 
-  // 1️⃣ Primero validamos de entrada si tiene préstamo INCOBRABLE (Bloqueante)
   const selectedClientHasBadDebt = form.clientId 
     ? loans.some((loan) => loan.clientId === form.clientId && loan.status === "INCOBRABLE")
     : false;
 
-  // 2️⃣ Luego validamos si tiene préstamo REFINANCIADO (Informativo / Permitido avanzar)
   const selectedClientHasRefinanced = form.clientId 
     ? loans.some((loan) => loan.clientId === form.clientId && loan.status === "REFINANCIADO")
     : false;
@@ -106,29 +113,47 @@ export default function LoanForm({
     return Number(cleanValue).toLocaleString("es-AR");
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  // Función para calcular los días hábiles hasta fin de mes (excluyendo domingos)
+  const handleSetEndOfMonthDays = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const lastDayOfMonth = new Date(year, month + 1, 0);
     
-    if (["amount", "interestRate", "installments", "remainderRate", "subsequentRate"].includes(name)) {
-      const cleanValue = value.replace(/\D/g, "");
-      if (cleanValue === "" || parseInt(cleanValue, 10) >= 0) {
-        setForm({ ...form, [name]: cleanValue });
+    let businessDaysCount = 0;
+    let curr = new Date(today);
+    curr.setDate(curr.getDate() + 1);
+
+    while (curr <= lastDayOfMonth) {
+      if (curr.getDay() !== 0) {
+        businessDaysCount++;
       }
-      return;
+      curr.setDate(curr.getDate() + 1);
     }
 
-    setForm({ ...form, [name]: value });
+    const finalDays = Math.max(1, businessDaysCount).toString();
+    setForm(prev => ({
+      ...prev,
+      dailyDaysCount: finalDays,
+      installments: finalDays
+    }));
   };
 
-  const currentDaysDiff = getDaysBetween(new Date(), form.dueDate);
+  // Función para calcular días hábiles según una fecha tope elegida en el calendario
+  const handleCustomEndDateChange = (e) => {
+    const selectedDateStr = e.target.value;
+    if (!selectedDateStr) return;
 
-  const handleOpenPreview = (e) => {
-    e.preventDefault();
-    if (!form.clientId || !form.amount || !form.dueDate) {
+    const endDate = new Date(selectedDateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    if (endDate <= today) {
       Swal.fire({
         icon: "warning",
-        title: "Campos incompletos",
-        text: "Selecciona un cliente, define el monto y la fecha de vencimiento.",
+        title: "Fecha inválida",
+        text: "La fecha final debe ser posterior al día de hoy.",
         background: "#171717",
         color: "#ffffff",
         confirmButtonColor: "#dc2626",
@@ -136,7 +161,66 @@ export default function LoanForm({
       return;
     }
 
-    // 🛑 BLOQUEO ESTRICTO SOLO PARA INCOBRABLES
+    let businessDaysCount = 0;
+    let curr = new Date(today);
+    curr.setDate(curr.getDate() + 1);
+
+    while (curr <= endDate) {
+      if (curr.getDay() !== 0) {
+        businessDaysCount++;
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    const finalDays = Math.max(1, businessDaysCount).toString();
+    setForm(prev => ({
+      ...prev,
+      dailyDaysCount: finalDays,
+      installments: finalDays
+    }));
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (["amount", "interestRate", "installments", "dailyDaysCount", "remainderRate", "subsequentRate"].includes(name)) {
+      const cleanValue = value.replace(/\D/g, "");
+      if (cleanValue === "" || parseInt(cleanValue, 10) >= 0) {
+        if (name === "dailyDaysCount") {
+          setForm({ ...form, dailyDaysCount: cleanValue, installments: cleanValue });
+          return;
+        }
+        setForm({ ...form, [name]: cleanValue });
+      }
+      return;
+    }
+
+    if (name === "frequency" && value === "DIARIO") {
+      setForm({ ...form, frequency: value, installments: form.dailyDaysCount });
+      return;
+    }
+
+    setForm({ ...form, [name]: value });
+  };
+
+  const areBasicFieldsComplete = form.clientId && form.amount && form.interestRate && form.paymentMethod && form.frequency;
+
+  const currentDaysDiff = getDaysBetween(new Date(), form.dueDate);
+
+  const handleOpenPreview = (e) => {
+    e.preventDefault();
+    if (!areBasicFieldsComplete || !form.dueDate) {
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Por favor completa todos los campos obligatorios.",
+        background: "#171717",
+        color: "#ffffff",
+        confirmButtonColor: "#dc2626",
+      });
+      return;
+    }
+
     if (selectedClientHasBadDebt) {
       Swal.fire({
         icon: "error",
@@ -203,6 +287,7 @@ export default function LoanForm({
       frequency: "A_TERMINO",
       paymentMethod: "EFECTIVO",
       dueDate: "",
+      dailyDaysCount: "24",
       remainderType: "proporcional",
       remainderRate: "20",
       multiInstallmentCalc: "plena",
@@ -238,7 +323,7 @@ export default function LoanForm({
           <form onSubmit={handleOpenPreview} className="space-y-4 overflow-y-auto pr-1 flex-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               
-              {/* Cliente */}
+              {/* 1. Cliente */}
               <div className="sm:col-span-2 w-full">
                 <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Cliente *</label>
                 <select
@@ -255,7 +340,6 @@ export default function LoanForm({
                   ))}
                 </select>
 
-                {/* ⚠️ ALERTA PARA INCOBRABLES (BLOQUEANTE) */}
                 {selectedClientHasBadDebt && (
                   <div className="mt-3 p-3 rounded-xl bg-rose-950/80 border-2 border-rose-600 text-rose-200 text-xs font-bold flex items-start sm:items-center gap-3 animate-pulse shadow-lg shadow-rose-950">
                     <span className="text-lg sm:text-xl flex-shrink-0">🚨</span>
@@ -266,7 +350,6 @@ export default function LoanForm({
                   </div>
                 )}
 
-                {/* ℹ️ AVISO PARA REFINANCIADOS */}
                 {!selectedClientHasBadDebt && selectedClientHasRefinanced && (
                   <div className="mt-3 p-3 rounded-xl bg-purple-950/60 border border-purple-600 text-purple-200 text-xs font-medium flex items-start sm:items-center gap-3 shadow-lg">
                     <span className="text-lg sm:text-xl flex-shrink-0">🟣</span>
@@ -278,7 +361,7 @@ export default function LoanForm({
                 )}
               </div>
 
-              {/* Monto */}
+              {/* 2. Monto */}
               <div className="w-full">
                 <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Monto ($) *</label>
                 <input
@@ -291,7 +374,7 @@ export default function LoanForm({
                 />
               </div>
 
-              {/* Interés Mensual */}
+              {/* 3. Interés Mensual */}
               <div className="w-full">
                 <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Interés Mensual (%) *</label>
                 <input
@@ -303,7 +386,7 @@ export default function LoanForm({
                 />
               </div>
 
-              {/* Forma de Entrega */}
+              {/* 4. Forma de Entrega */}
               <div className="w-full">
                 <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Forma de Entrega *</label>
                 <select
@@ -317,19 +400,7 @@ export default function LoanForm({
                 </select>
               </div>
 
-              {/* Cuotas */}
-              <div className="w-full">
-                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Cuotas *</label>
-                <input
-                  type="text"
-                  name="installments"
-                  value={form.installments}
-                  onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                />
-              </div>
-
-              {/* Frecuencia */}
+              {/* 5. Frecuencia */}
               <div className="w-full">
                 <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Frecuencia *</label>
                 <select
@@ -338,54 +409,143 @@ export default function LoanForm({
                   onChange={handleChange}
                   className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 cursor-pointer"
                 >
-                  <option value="DIARIO" disabled={installmentsNum === 1}>Diario</option>
-                  <option value="SEMANAL" disabled={installmentsNum === 1}>Semanal</option>
-                  <option value="QUINCENAL" disabled={installmentsNum === 1}>Quincenal</option>
-                  <option value="MENSUAL" disabled={installmentsNum === 1}>Mensual</option>
-                  <option value="A_TERMINO" disabled={installmentsNum > 1}>A Término</option>
+                  <option value="DIARIO">Diario</option>
+                  <option value="SEMANAL">Semanal</option>
+                  <option value="QUINCENAL">Quincenal</option>
+                  <option value="MENSUAL">Mensual</option>
+                  <option value="A_TERMINO">A Término</option>
                 </select>
               </div>
 
-              {/* Fecha de Vencimiento */}
-              <div className="w-full">
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                    {installmentsNum > 1 ? "Fecha 1er Vto. *" : "Fecha Vencimiento *"}
-                  </label>
-                  <span className="text-[10px] sm:text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
-                    {currentDaysDiff} días
-                  </span>
-                </div>
-                <input
-                  type="date"
-                  name="dueDate"
-                  value={form.dueDate}
-                  onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 cursor-pointer scheme-dark"
-                />
-              </div>
+              {/* CAMPOS CONDICIONALES */}
+              {areBasicFieldsComplete && (
+                <>
+                  {/* Si es DIARIO: Pide días, botón fin de mes y selector de calendario personalizado */}
+                  {form.frequency === "DIARIO" && (
+                    <div className="w-full sm:col-span-2 bg-neutral-950 border border-neutral-800 p-3.5 rounded-xl space-y-3 animate-fadeIn">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-red-400">
+                          Cantidad de Días / Cuotas Diarias *
+                        </label>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <button
+                            type="button"
+                            onClick={handleSetEndOfMonthDays}
+                            className="flex-1 sm:flex-none bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer border border-neutral-700"
+                          >
+                            📅 Fin de Mes
+                          </button>
+                          <div className="relative flex-1 sm:flex-none">
+                            <input
+                              type="date"
+                              onChange={handleCustomEndDateChange}
+                              title="Elegir fecha final en calendario"
+                              className="w-full sm:w-auto bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer border border-neutral-700 scheme-dark"
+                            />
+                          </div>
+                        </div>
+                      </div>
 
-              {/* Notas / Historial */}
-              <div className="sm:col-span-2 w-full">
-                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Notas / Historial</label>
-                <textarea
-                  name="notes"
-                  rows="2"
-                  value={form.notes}
-                  onChange={handleChange}
-                  placeholder="Detalles adicionales o motivo de refinanciación..."
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 resize-none"
-                />
-              </div>
+                      <input
+                        type="text"
+                        name="dailyDaysCount"
+                        value={form.dailyDaysCount}
+                        onChange={handleChange}
+                        placeholder="Ej. 24"
+                        className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 font-bold"
+                      />
+                      <p className="text-[11px] text-neutral-500">
+                        Ajusta las cuotas hábiles (excluyendo domingos). El 1er vencimiento es obligatorio a 1 día.
+                      </p>
 
-              <div className="sm:col-span-2">
-                <LoanCalculationOptions
-                  form={form}
-                  onChange={handleChange}
-                  currentDaysDiff={currentDaysDiff}
-                  installmentsNum={installmentsNum}
-                />
-              </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                            Fecha 1er Vencimiento * (Fijo a 1 día)
+                          </label>
+                          <span className="text-[10px] sm:text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
+                            {currentDaysDiff} días
+                          </span>
+                        </div>
+                        <input
+                          type="date"
+                          name="dueDate"
+                          value={form.dueDate}
+                          disabled
+                          className="w-full bg-black/60 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-neutral-400 cursor-not-allowed scheme-dark"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Notas / Historial</label>
+                        <textarea
+                          name="notes"
+                          rows="2"
+                          value={form.notes}
+                          onChange={handleChange}
+                          placeholder="Detalles adicionales o motivo de refinanciación..."
+                          className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Si es SEMANAL / QUINCENAL / MENSUAL / A_TÉRMINO */}
+                  {form.frequency !== "DIARIO" && (
+                    <>
+                      <div className="w-full">
+                        <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Cuotas *</label>
+                        <input
+                          type="text"
+                          name="installments"
+                          value={form.installments}
+                          onChange={handleChange}
+                          className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
+                        />
+                      </div>
+
+                      <div className="w-full">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                            {installmentsNum > 1 ? "Fecha 1er Vto. *" : "Fecha Vencimiento *"}
+                          </label>
+                          <span className="text-[10px] sm:text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50">
+                            {currentDaysDiff} días
+                          </span>
+                        </div>
+                        <input
+                          type="date"
+                          name="dueDate"
+                          value={form.dueDate}
+                          onChange={handleChange}
+                          className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 cursor-pointer scheme-dark"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 w-full">
+                        <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Notas / Historial</label>
+                        <textarea
+                          name="notes"
+                          rows="2"
+                          value={form.notes}
+                          onChange={handleChange}
+                          placeholder="Detalles adicionales o motivo de refinanciación..."
+                          className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600 resize-none"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <LoanCalculationOptions
+                          form={form}
+                          onChange={handleChange}
+                          currentDaysDiff={currentDaysDiff}
+                          installmentsNum={installmentsNum}
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
 
             </div>
 
@@ -398,17 +558,20 @@ export default function LoanForm({
               >
                 Cancelar
               </button>
-              <button
-                type="submit"
-                disabled={selectedClientHasBadDebt}
-                className={`w-full sm:w-auto font-semibold px-6 py-2.5 rounded-xl text-sm shadow-lg transition-all ${
-                  selectedClientHasBadDebt 
-                    ? "bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50 shadow-none border border-neutral-700" 
-                    : "bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-red-950/50 cursor-pointer"
-                }`}
-              >
-                {selectedClientHasBadDebt ? "Cliente Bloqueado ❌" : "Previsualizar Préstamo"}
-              </button>
+
+              {areBasicFieldsComplete && (
+                <button
+                  type="submit"
+                  disabled={selectedClientHasBadDebt}
+                  className={`w-full sm:w-auto font-semibold px-6 py-2.5 rounded-xl text-sm shadow-lg transition-all ${
+                    selectedClientHasBadDebt 
+                      ? "bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50 shadow-none border border-neutral-700" 
+                      : "bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-red-950/50 cursor-pointer"
+                  }`}
+                >
+                  {selectedClientHasBadDebt ? "Cliente Bloqueado ❌" : "Previsualizar Préstamo"}
+                </button>
+              )}
             </div>
           </form>
         </div>
