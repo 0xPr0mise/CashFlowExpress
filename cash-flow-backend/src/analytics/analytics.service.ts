@@ -9,6 +9,7 @@ export class AnalyticsService {
     const dateFilter: any = {};
     const now = new Date();
 
+    // 1. Procesamiento de filtros de fecha robusto
     if (preset && preset !== 'all' && preset !== 'undefined' && preset !== 'null') {
       if (preset === 'today') {
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -33,7 +34,14 @@ export class AnalyticsService {
         dateFilter.gte = startOfMonth;
         dateFilter.lte = endOfMonth;
       }
-    } else if (startDateStr && endDateStr && startDateStr !== 'undefined' && endDateStr !== 'undefined' && startDateStr !== 'null' && endDateStr !== 'null') {
+    } else if (
+      startDateStr &&
+      endDateStr &&
+      startDateStr !== 'undefined' &&
+      endDateStr !== 'undefined' &&
+      startDateStr !== 'null' &&
+      endDateStr !== 'null'
+    ) {
       const [startYear, startMonth, startDay] = startDateStr.split('-').map(Number);
       const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
 
@@ -45,24 +53,30 @@ export class AnalyticsService {
 
     const hasDateFilter = Object.keys(dateFilter).length > 0;
 
-    // REGLA DE NEGOCIO: 
-    // - Si hay filtro de fecha activo, filtramos por 'dueDate' (lo que vence en el período).
-    // - Si no hay filtro ('all'), traemos todo el histórico de préstamos.
-    const loanWhere = hasDateFilter ? { dueDate: dateFilter } : {};
-    const cashWhere = hasDateFilter ? { createdAt: dateFilter } : {};
+    // 2. Consultas a base de datos
+    // Para clientes y movimientos de caja aplicamos el filtro por fecha de creación si existe
     const clientWhere = hasDateFilter ? { createdAt: dateFilter } : {};
+    const cashWhere = hasDateFilter ? { createdAt: dateFilter } : {};
 
-    const clientsCount = await this.prisma.client.count({ where: clientWhere });
+    // IMPORTANTE: Para los préstamos, si hay filtro, evaluamos por createdAt (o dejamos abierto 
+    // el histórico para gráficos precisos y filtramos en memoria o por rango amplio).
+    // Aquí usamos createdAt para la creación de la cartera en el período seleccionado.
+    const loanWhere = hasDateFilter ? { createdAt: dateFilter } : {};
 
-    const loans = await this.prisma.loan.findMany({
-      where: loanWhere,
-      include: { payments: true },
-    });
+    const [clientsCount, loans, cashMovementRecords] = await Promise.all([
+      this.prisma.client.count({ where: clientWhere }),
+      this.prisma.loan.findMany({
+        where: loanWhere,
+        include: { 
+          payments: true,
+          client: { select: { id: true, name: true, phone: true, dni: true } }
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.cashMovement.findMany({ where: cashWhere }),
+    ]);
 
-    const cashMovements = await this.prisma.cashMovement.findMany({
-      where: cashWhere,
-    });
-
+    // 3. Procesamiento y Agregaciones de Negocio
     const totalLoansCount = loans.length;
     const activeLoansCount = loans.filter((l) => l.status === 'ACTIVO').length;
     const paidLoansCount = loans.filter((l) => l.status === 'PAGADO').length;
@@ -74,20 +88,25 @@ export class AnalyticsService {
     loans.forEach((loan) => {
       if (loan.status === 'REFINANCIADO') return;
 
-      totalLentAmount += Number(loan.amount) || 0;
-      totalExpectedReturn += Number(loan.totalToPay) || 0;
-      
+      const capital = Number(loan.amount) || 0;
+      const expected = Number(loan.totalToPay) || 0;
+
+      totalLentAmount += capital;
+      totalExpectedReturn += expected;
+
       loan.payments.forEach((p) => {
         totalCollected += Number(p.amount) || 0;
       });
     });
 
     let cashBalance = 0;
-    cashMovements.forEach((m) => {
-      if (m.type === 'INGRESO') cashBalance += Number(m.amount) || 0;
-      if (m.type === 'EGRESO') cashBalance -= Number(m.amount) || 0;
+    cashMovementRecords.forEach((m) => {
+      const amount = Number(m.amount) || 0;
+      if (m.type === 'INGRESO') cashBalance += amount;
+      if (m.type === 'EGRESO') cashBalance -= amount;
     });
 
+    // 4. Retorno con contrato tipado y limpio para el frontend
     return {
       clientsCount,
       totalLoansCount,
@@ -97,7 +116,20 @@ export class AnalyticsService {
       totalExpectedReturn,
       totalCollected,
       cashBalance,
-      loans,
+      loans: loans.map(loan => ({
+        id: loan.id,
+        amount: Number(loan.amount) || 0,
+        totalToPay: Number(loan.totalToPay) || 0,
+        status: loan.status,
+        createdAt: loan.createdAt,
+        dueDate: loan.dueDate,
+        client: loan.client,
+        payments: (loan.payments || []).map(p => ({
+          id: p.id,
+          amount: Number(p.amount) || 0,
+          createdAt: p.createdAt,
+        }))
+      })),
     };
   }
 }
