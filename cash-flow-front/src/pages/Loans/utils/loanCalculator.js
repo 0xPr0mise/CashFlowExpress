@@ -16,8 +16,11 @@ const adjustForSunday = (dateObj) => {
 };
 
 export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
-  const amount = parseInt(form.amount, 10) || 0;
-  const baseInterestRate = parseInt(form.interestRate, 10) || parseInt(defaultInterestRate, 10) || 20;
+  const amount = parseFloat(form.amount) || 0;
+  
+  // Usamos parseFloat en lugar de parseInt para no perder los decimales de la tasa (ej: 31.25)
+  const baseInterestRate = parseFloat(form.interestRate) || parseFloat(defaultInterestRate) || 20;
+  
   const installments = parseInt(form.installments, 10) || 1;
   const frequency = form.frequency;
   const paymentMethod = form.paymentMethod;
@@ -42,14 +45,14 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
 
     if (totalDays <= diasMesBase) {
       const dailyRate = baseInterestRate / diasMesBase;
-      finalInterestRate = Math.round(dailyRate * Math.max(1, totalDays) * 100) / 100;
+      finalInterestRate = Math.round(dailyRate * Math.max(1, totalDays) * 10000) / 10000; // Preservamos mejor precisión
       interestAmount = Math.round(amount * (finalInterestRate / 100));
     } else {
       const diasExtras = totalDays - diasMesBase;
       const interesPrimerMes = amount * (baseInterestRate / 100);
       
       const tasaARecalcular = form.remainderType === "personalizado" 
-        ? (parseInt(form.remainderRate, 10) || baseInterestRate)
+        ? (parseFloat(form.remainderRate) || baseInterestRate)
         : baseInterestRate;
 
       const tasaDiariaRemanente = tasaARecalcular / diasMesBase;
@@ -57,7 +60,9 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
       const interesRemanente = amount * (tasaRemanenteEfectiva / 100);
 
       interestAmount = Math.round(interesPrimerMes + interesRemanente);
-      finalInterestRate = Math.round((interestAmount / amount) * 100);
+      
+      // Calculamos la tasa final equivalente con 2 decimales para evitar redondeos bruscos
+      finalInterestRate = Number(((interestAmount / amount) * 100).toFixed(2));
     }
 
     totalToPay = amount + interestAmount;
@@ -102,16 +107,14 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
     // CASO 1: CUOTA ÚNICA O A TÉRMINO (Con tasa mensual fija + proporcional excedente)
     // ==========================================
     if (currentDaysDiff <= diasMesBase) {
-      // Tasa mensual calendario fija (plena) hasta los 30 días
       finalInterestRate = baseInterestRate;
       interestAmount = Math.round(amount * (baseInterestRate / 100));
     } else {
-      // Superado el mes calendario: Interés pleno del primer mes + proporcional de días siguientes con tasa del segundo mes
       const diasExtras = currentDaysDiff - diasMesBase;
       const interesPrimerMes = amount * (baseInterestRate / 100);
       
       const tasaARecalcular = form.remainderType === "personalizado" 
-        ? (parseInt(form.remainderRate, 10) || baseInterestRate)
+        ? (parseFloat(form.remainderRate) || baseInterestRate)
         : baseInterestRate;
 
       const tasaDiariaRemanente = tasaARecalcular / diasMesBase;
@@ -119,7 +122,9 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
       const interesRemanente = amount * (tasaRemanenteEfectiva / 100);
 
       interestAmount = Math.round(interesPrimerMes + interesRemanente);
-      finalInterestRate = Math.round((interestAmount / amount) * 100);
+      
+      // Mantenemos decimales en la tasa final para que coincida con lo que el usuario espera
+      finalInterestRate = Number(((interestAmount / amount) * 100).toFixed(2));
     }
 
     totalToPay = amount + interestAmount;
@@ -150,13 +155,11 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
         instDate.setMonth(baseDateObj.getMonth() + (i - 1));
       }
 
-      // Si el vencimiento mensual cae domingo, se corre al lunes
       adjustForSunday(instDate);
 
       let instInterest = 0;
 
       if (i === 1) {
-        // Primera cuota: Tasa mensual calendario fija o proporcional según configuración
         if (form.multiInstallmentCalc === "plena") {
           instInterest = Math.round(amount * (baseInterestRate / 100));
         } else {
@@ -165,7 +168,6 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
           instInterest = Math.round(amount * (tasaPrecisa / 100));
         }
       } else {
-        // Cuotas subsecuentes usando los indicadores del formulario
         if (form.subsequentCalcType === "plena") {
           instInterest = Math.round(amount * (baseInterestRate / 100));
         } else if (form.subsequentCalcType === "proporcional_intervalo") {
@@ -175,7 +177,7 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
           const tasaIntervalo = dailyRate * daysBetweenInsts;
           instInterest = Math.round(amount * (tasaIntervalo / 100));
         } else {
-          const customSubRate = parseInt(form.subsequentRate, 10) || baseInterestRate;
+          const customSubRate = parseFloat(form.subsequentRate) || baseInterestRate;
           instInterest = Math.round(amount * (customSubRate / 100));
         }
       }
@@ -193,7 +195,7 @@ export const calculateLoanDetails = (form, clients, defaultInterestRate) => {
 
     interestAmount = accumulatedInterest;
     totalToPay = amount + interestAmount;
-    finalInterestRate = Math.round((interestAmount / amount) * 100);
+    finalInterestRate = Number(((interestAmount / amount) * 100).toFixed(2));
   }
 
   const selectedClient = clients.find((c) => String(c.id) === String(form.clientId));

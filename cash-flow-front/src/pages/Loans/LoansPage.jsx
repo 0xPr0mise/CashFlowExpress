@@ -443,7 +443,10 @@ export default function LoansPage() {
         <LoanSuccessModal
           isOpen={isSuccessModalOpen}
           successLoanData={successLoanData}
-          onClose={() => setIsSuccessModalOpen(false)}
+          onClose={() => {
+            setSuccessLoanData(null);
+            setIsSuccessModalOpen(false);
+          }}
         />
 
         <UpcomingExpirationsModal

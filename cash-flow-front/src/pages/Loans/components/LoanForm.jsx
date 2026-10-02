@@ -23,11 +23,12 @@ export default function LoanForm({
     paymentMethod: "EFECTIVO",
     dueDate: "",
     dailyDaysCount: "24",
+    targetTotalToPay: "", 
     remainderType: "proporcional", 
-    remainderRate: "20",
+    remainderRate: String(defaultInterestRate),
     multiInstallmentCalc: "plena",   
     subsequentCalcType: "plena",    
-    subsequentRate: "20",
+    subsequentRate: String(defaultInterestRate),
     notes: "",
   });
 
@@ -35,10 +36,20 @@ export default function LoanForm({
   const [calculatedDetails, setCalculatedDetails] = useState(null);
   const [successLoanData, setSuccessLoanData] = useState(null);
 
+  // Banderas para controlar el flujo bidireccional y evitar bucles
+  const [isUpdatingFromTotal, setIsUpdatingFromTotal] = useState(false);
+  const [isUserTypingTotal, setIsUserTypingTotal] = useState(false);
+
   // Sincronizar tasa por defecto si no hay datos iniciales
   useEffect(() => {
     if (defaultInterestRate !== undefined && !initialData) {
-      setForm((prev) => ({ ...prev, interestRate: String(Math.round(defaultInterestRate)) }));
+      const defaultStr = String(defaultInterestRate);
+      setForm((prev) => ({ 
+        ...prev, 
+        interestRate: defaultStr,
+        remainderRate: defaultStr,
+        subsequentRate: defaultStr
+      }));
     }
   }, [defaultInterestRate, initialData]);
 
@@ -74,7 +85,6 @@ export default function LoanForm({
     let targetDate = new Date();
 
     if (form.frequency === "DIARIO") {
-      // El vencimiento en diario sí o sí es a 1 día (ajustando si cae domingo)
       targetDate.setDate(today.getDate() + 1);
       if (targetDate.getDay() === 0) {
         targetDate.setDate(targetDate.getDate() + 1);
@@ -96,6 +106,24 @@ export default function LoanForm({
 
   }, [form.installments, form.frequency, form.dailyDaysCount]);
 
+  // Reactividad: Si cambia la Tasa o el Monto, SOLO actualizamos el total si el usuario NO está escribiendo el total directamente
+  useEffect(() => {
+    if (isUpdatingFromTotal || isUserTypingTotal) return;
+
+    const amount = parseFloat(form.amount) || 0;
+    const rate = parseFloat(form.interestRate) || 0;
+    
+    if (amount > 0 && rate > 0) {
+      const tempDetails = calculateLoanDetails(form, clients, defaultInterestRate);
+      if (tempDetails && tempDetails.totalToPay) {
+        setForm(prev => ({
+          ...prev,
+          targetTotalToPay: String(Math.round(tempDetails.totalToPay))
+        }));
+      }
+    }
+  }, [form.amount, form.interestRate, form.frequency, form.installments, form.dailyDaysCount]);
+
   if (!isOpen) return null;
 
   const selectedClientHasBadDebt = form.clientId 
@@ -113,7 +141,6 @@ export default function LoanForm({
     return Number(cleanValue).toLocaleString("es-AR");
   };
 
-  // Función para calcular los días hábiles hasta fin de mes (excluyendo domingos)
   const handleSetEndOfMonthDays = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -139,7 +166,6 @@ export default function LoanForm({
     }));
   };
 
-  // Función para calcular días hábiles según una fecha tope elegida en el calendario
   const handleCustomEndDateChange = (e) => {
     const selectedDateStr = e.target.value;
     if (!selectedDateStr) return;
@@ -180,10 +206,65 @@ export default function LoanForm({
     }));
   };
 
+  // Cálculo inverso exacto para que la tasa refleje fielmente el total pretendido
+  const handleTargetTotalChange = (rawTargetValue) => {
+    setIsUserTypingTotal(true);
+    const cleanTargetStr = rawTargetValue.replace(/\D/g, "");
+    const targetTotal = parseFloat(cleanTargetStr) || 0;
+    const amount = parseFloat(form.amount) || 0;
+
+    let newRate = form.interestRate;
+
+    if (targetTotal > amount && amount > 0) {
+      setIsUpdatingFromTotal(true);
+      const desiredInterestAmount = targetTotal - amount;
+      
+      let calculatedRate = (desiredInterestAmount / amount) * 100;
+      
+      if (form.frequency === "DIARIO") {
+        const totalDays = parseFloat(form.dailyDaysCount) || 24;
+        calculatedRate = ((desiredInterestAmount / amount) * 100) / (totalDays / 30);
+      }
+
+      newRate = String(Math.max(0.0001, calculatedRate));
+    } else {
+      setIsUpdatingFromTotal(false);
+    }
+
+    setForm(prev => ({
+      ...prev,
+      targetTotalToPay: cleanTargetStr,
+      interestRate: newRate,
+      remainderRate: newRate,
+      subsequentRate: newRate,
+    }));
+
+    setTimeout(() => {
+      setIsUpdatingFromTotal(false);
+      setIsUserTypingTotal(false);
+    }, 50);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    if (["amount", "interestRate", "installments", "dailyDaysCount", "remainderRate", "subsequentRate"].includes(name)) {
+    if (name === "interestRate" || name === "remainderRate" || name === "subsequentRate") {
+      setIsUpdatingFromTotal(false); 
+      setIsUserTypingTotal(false);
+      const sanitized = value.replace(/[^0-9.]/g, "");
+      const parts = sanitized.split(".");
+      const formattedValue = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : sanitized;
+
+      setForm({
+        ...form,
+        [name]: formattedValue,
+        ...(name === "interestRate" ? { remainderRate: formattedValue, subsequentRate: formattedValue } : {})
+      });
+      return;
+    }
+
+    if (["amount", "installments", "dailyDaysCount"].includes(name)) {
+      setIsUpdatingFromTotal(false);
       const cleanValue = value.replace(/\D/g, "");
       if (cleanValue === "" || parseInt(cleanValue, 10) >= 0) {
         if (name === "dailyDaysCount") {
@@ -195,6 +276,11 @@ export default function LoanForm({
       return;
     }
 
+    if (name === "targetTotalToPay") {
+      handleTargetTotalChange(value);
+      return;
+    }
+
     if (name === "frequency" && value === "DIARIO") {
       setForm({ ...form, frequency: value, installments: form.dailyDaysCount });
       return;
@@ -203,7 +289,13 @@ export default function LoanForm({
     setForm({ ...form, [name]: value });
   };
 
-  const areBasicFieldsComplete = form.clientId && form.amount && form.interestRate && form.paymentMethod && form.frequency;
+  const areBasicFieldsComplete = Boolean(
+    form.clientId && 
+    form.amount && 
+    form.interestRate && 
+    form.paymentMethod && 
+    form.frequency
+  );
 
   const currentDaysDiff = getDaysBetween(new Date(), form.dueDate);
 
@@ -270,7 +362,7 @@ export default function LoanForm({
       paymentMethod: calculatedDetails.paymentMethod,
       interestRate: calculatedDetails.interestRate,
       dueDate: calculatedDetails.dueDate,
-      totalToPay: calculatedDetails.totalToPay,
+      totalToPay: Math.round(calculatedDetails.totalToPay),
       days: calculatedDetails.daysDiff,
       schedule: calculatedDetails.schedule,
       notes: form.notes || "",
@@ -288,11 +380,12 @@ export default function LoanForm({
       paymentMethod: "EFECTIVO",
       dueDate: "",
       dailyDaysCount: "24",
+      targetTotalToPay: "",
       remainderType: "proporcional",
-      remainderRate: "20",
+      remainderRate: String(defaultInterestRate),
       multiInstallmentCalc: "plena",
       subsequentCalcType: "plena",
-      subsequentRate: "20",
+      subsequentRate: String(defaultInterestRate),
       notes: "",
     });
     setShowPreviewModal(false);
@@ -374,15 +467,18 @@ export default function LoanForm({
                 />
               </div>
 
-              {/* 3. Interés Mensual */}
+              {/* 3. Total Final a Cobrar */}
               <div className="w-full">
-                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Interés Mensual (%) *</label>
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-emerald-400 mb-1.5">
+                  Total Final a Cobrar ($) [Reactivo]
+                </label>
                 <input
                   type="text"
-                  name="interestRate"
-                  value={form.interestRate}
+                  name="targetTotalToPay"
+                  value={formatThousands(form.targetTotalToPay)}
                   onChange={handleChange}
-                  className="w-full bg-black border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
+                  placeholder="Ej. 1250000"
+                  className="w-full bg-black border border-emerald-900/50 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-bold"
                 />
               </div>
 
@@ -417,10 +513,24 @@ export default function LoanForm({
                 </select>
               </div>
 
+              {/* 6. Interés Mensual (%) */}
+              <div className="w-full sm:col-span-2">
+                <label className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-amber-400 mb-1.5">
+                  Interés Mensual (%) * [Reactivo y Preciso]
+                </label>
+                <input
+                  type="text"
+                  name="interestRate"
+                  value={form.interestRate}
+                  onChange={handleChange}
+                  placeholder="Ej. 1150"
+                  className="w-full bg-black border border-amber-900/50 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 font-bold text-amber-400"
+                />
+              </div>
+
               {/* CAMPOS CONDICIONALES */}
               {areBasicFieldsComplete && (
                 <>
-                  {/* Si es DIARIO: Pide días, botón fin de mes y selector de calendario personalizado */}
                   {form.frequency === "DIARIO" && (
                     <div className="w-full sm:col-span-2 bg-neutral-950 border border-neutral-800 p-3.5 rounded-xl space-y-3 animate-fadeIn">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -490,7 +600,6 @@ export default function LoanForm({
                     </div>
                   )}
 
-                  {/* Si es SEMANAL / QUINCENAL / MENSUAL / A_TÉRMINO */}
                   {form.frequency !== "DIARIO" && (
                     <>
                       <div className="w-full">
